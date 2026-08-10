@@ -1,0 +1,184 @@
+_schema-version: "3.0.0"
+ID: room-booking
+description: Sistema de Reservación de Salas
+version: 1.0.0
+
+parameters:
+  enable-parallel-deployments: true
+
+modules:
+
+# ─── Backend CAP ─────────────────────────────────────────
+- name: room-booking-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: room-booking-db
+  - name: room-booking-auth
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    readiness-health-check-http-endpoint: /health
+    readiness-health-check-type: http
+  build-parameters:
+    builder: npm
+
+# ─── Deploy HANA ─────────────────────────────────────────
+- name: room-booking-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: room-booking-db
+  parameters:
+    buildpack: nodejs_buildpack
+
+# ─── Approuter ───────────────────────────────────────────
+- name: room-booking
+  type: approuter.nodejs
+  path: app/router
+  requires:
+  - name: srv-api
+    group: destinations
+    properties:
+      forwardAuthToken: true
+      name: srv-api
+      url: ~{srv-url}
+  - name: room-booking-auth
+  - name: room-booking-destination-service
+  - name: room-booking-html5-runtime
+  parameters:
+    disk-quota: 256M
+    keep-existing-routes: true
+    memory: 64M
+  build-parameters:
+    requires:
+    - artifacts:
+      - ./*
+      name: room-booking-app-content
+      target-path: app/
+
+# ─── App Content ─────────────────────────────────────────
+- name: room-booking-app-content
+  type: com.sap.application.content
+  path: .
+  requires:
+  - name: room-booking-html5-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: resources
+    requires:
+    - artifacts:
+      - roombookingbookings.zip
+      name: roombookingbookings
+      target-path: resources/
+
+# ─── UI Fiori ────────────────────────────────────────────
+- name: roombookingbookings
+  type: html5
+  path: app/bookings
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms:
+    - MTA
+
+# ─── Destination Content para Work Zone ──────────────────
+- name: room-booking-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: room-booking-destination-service
+    parameters:
+      content-target: true
+  - name: room-booking-html5-repo-host
+    parameters:
+      service-key:
+        name: room-booking-repo-host-key
+  - name: room-booking-auth
+    parameters:
+      service-key:
+        name: room-booking-auth-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: room_booking_repo_host
+          ServiceInstanceName: room-booking-html5-repo-host
+          ServiceKeyName: room-booking-repo-host-key
+          sap.cloud.service: room.booking
+        - Name: room_booking_uaa
+          Authentication: OAuth2UserTokenExchange
+          ServiceInstanceName: room-booking-auth
+          ServiceKeyName: room-booking-auth-key
+          sap.cloud.service: room.booking
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+
+resources:
+
+# ─── HANA compartida ─────────────────────────────────────
+- name: room-booking-db
+  type: org.cloudfoundry.existing-service
+  parameters:
+    service-name: my-first-cap-db
+
+# ─── XSUAA ───────────────────────────────────────────────
+- name: room-booking-auth
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      tenant-mode: dedicated
+      xsappname: room-booking
+    path: ./xs-security.json
+    service: xsuaa
+    service-plan: application
+
+# ─── HTML5 Repo Host propio ───────────────────────────────
+- name: room-booking-html5-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: room-booking-html5-repo-host
+    service-plan: app-host
+
+# ─── HTML5 Runtime ───────────────────────────────────────
+- name: room-booking-html5-runtime
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: room-booking-html5-runtime
+    service-plan: app-runtime
+
+# ─── Destination ─────────────────────────────────────────
+- name: room-booking-destination-service
+  type: org.cloudfoundry.managed-service
+  requires:
+  - name: srv-api
+  parameters:
+    service: destination
+    service-plan: lite
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          existing_destinations_policy: update
+          destinations:
+          - Authentication: NoAuthentication
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
+            Name: room-booking-srv-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
