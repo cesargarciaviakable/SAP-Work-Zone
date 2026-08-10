@@ -13,7 +13,7 @@ service ApprovalService {
         end as critically : Integer
     } actions {
         action approve(comment: String) returns ApprovalRequests;
-        action reject(comment: String) returns ApprovalRequests;
+        action rejectRequest(comment: String) returns ApprovalRequests;
     };
 
     action submitForApproval(task: UUID) returns many ApprovalRequests;

@@ -62,7 +62,7 @@ module.exports = class ApprovalService extends cds.ApplicationService {
         })
 
         // Bound action: rechazar una solicitud
-        this.on('reject', ApprovalRequests, async (req) => {
+        this.on('rejectRequest', ApprovalRequests, async (req) => {
             const { ID } = req.params[0]
             const { comment } = req.data
 
