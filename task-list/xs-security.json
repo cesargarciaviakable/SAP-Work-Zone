@@ -1,0 +1,38 @@
+{
+  "xsappname": "task-list",
+  "tenant-mode": "dedicated",
+  "description": "Security for Task List",
+  "oauth2-configuration": {
+    "token-validity": 3600,
+    "refresh-token-validity": 43200,
+    "redirect-uris": [
+      "https://*.cfapps.us10-001.hana.ondemand.com/**",
+      "https://*.hana.ondemand.com/**"
+    ]
+  },
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.User",
+      "description": "Access to Task Manager"
+    }
+  ],
+  "attributes": [],
+  "role-templates": [
+    {
+      "name": "User",
+      "description": "Access to Task Manager",
+      "scope-references": [
+        "$XSAPPNAME.User"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "TaskList_User",
+      "description": "Access to Task Manager application",
+      "role-template-references": [
+        "$XSAPPNAME.User"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+_schema-version: 3.3.0
+ID: task-list
+description: Task Manager with Approval Workflow
+version: 1.0.0
+
+parameters:
+  deploy_mode: html5-repo
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production
+
+modules:
+
+# ─── Backend CAP ─────────────────────────────────────────
+- name: task-list-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: task-list-auth
+  - name: task-list-destination
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    instances: 1
+  build-parameters:
+    builder: npm-ci
+
+# ─── HTML5 App Deployer ───────────────────────────────────
+- name: task-list-app-deployer
+  type: com.sap.application.content
+  path: gen
+  requires:
+  - name: task-list-html5-repo-host
+    parameters:
+      content-target: true
+  build-parameters:
+    build-result: app/
+    requires:
+    - artifacts:
+      - tasklisttasks.zip
+      name: tasklisttasks
+      target-path: app/
+    - artifacts:
+      - tasklistapprovals.zip
+      name: tasklistapprovals
+      target-path: app/
+
+# ─── UI: Tasks ───────────────────────────────────────────
+- name: tasklisttasks
+  type: html5
+  path: app/tasks
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+
+# ─── UI: Approvals ───────────────────────────────────────
+- name: tasklistapprovals
+  type: html5
+  path: app/approvals
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+
+# ─── Destination Content ─────────────────────────────────
+- name: task-list-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: task-list-destination
+    parameters:
+      content-target: true
+  - name: task-list-html5-repo-host
+    parameters:
+      service-key:
+        name: task-list-html5-repo-host-key
+  - name: task-list-auth
+    parameters:
+      service-key:
+        name: task-list-auth-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: task-list_html_repo_host
+          ServiceInstanceName: task-list-html5-service
+          ServiceKeyName: task-list-html5-repo-host-key
+          sap.cloud.service: task.list
+        - Authentication: OAuth2UserTokenExchange
+          Name: task-list_uaa
+          ServiceInstanceName: task-list-xsuaa-service
+          ServiceKeyName: task-list-auth-key
+          sap.cloud.service: task.list
+        existing_destinations_policy: update
+  build-parameters:
+    no-source: true
+
+resources:
+
+# ─── XSUAA ───────────────────────────────────────────────
+- name: task-list-auth
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: xsuaa
+    service-plan: application
+    service-name: task-list-xsuaa-service
+    path: ./xs-security.json
+
+# ─── Destination ─────────────────────────────────────────
+- name: task-list-destination
+  type: org.cloudfoundry.managed-service
+  requires:
+  - name: srv-api
+  parameters:
+    service: destination
+    service-plan: lite
+    config:
+      HTML5Runtime_enabled: true
+      init_data:
+        instance:
+          existing_destinations_policy: update
+          destinations:
+          - Authentication: NoAuthentication
+            Name: ui5
+            ProxyType: Internet
+            Type: HTTP
+            URL: https://ui5.sap.com
+          - Authentication: NoAuthentication
+            HTML5.DynamicDestination: true
+            HTML5.ForwardAuthToken: true
+            Name: srv-api
+            ProxyType: Internet
+            Type: HTTP
+            URL: ~{srv-api/srv-url}
+
+# ─── HTML5 Repo Host ─────────────────────────────────────
+- name: task-list-html5-repo-host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: task-list-html5-service
+    service-plan: app-host
