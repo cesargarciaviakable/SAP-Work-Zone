@@ -5,7 +5,7 @@ service BookingService {
     entity Buildings as projection on db.Buildings;
 
     @cds.redirection.target
-    entity Rooms     as projection on db.Employees;
+    entity Rooms     as projection on db.Rooms;
 
     entity Bookings  as projection on db.Bookings {
         *,
