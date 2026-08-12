@@ -33,3 +33,11 @@ entity ApprovalRequests : cuid, managed {
     approvedBy  : String(100);
     decidedAt   : Timestamp;
 }
+
+entity Statuses {
+    key value : TaskStatus
+}
+
+entity ApprovalStatuses {
+    key value : ApprovalStatus
+}

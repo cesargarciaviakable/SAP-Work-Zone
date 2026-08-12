@@ -1,104 +1,57 @@
 using ApprovalService as service from '../../srv/approval-service';
+
 annotate service.ApprovalRequests with @(
-    UI.FieldGroup #GeneratedGroup : {
-        $Type : 'UI.FieldGroupType',
-        Data : [
-            {
-                $Type : 'UI.DataField',
-                Label : 'status',
-                Value : status,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'comment',
-                Value : comment,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'requestedBy',
-                Value : requestedBy,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'approvedBy',
-                Value : approvedBy,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'decidedAt',
-                Value : decidedAt,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'critically',
-                Value : critically,
-            },
-        ],
+    UI.HeaderInfo: {
+        TypeName      : 'Approval',
+        TypeNamePlural: 'Approvals',
+        Title         : { Value: task.title },
+        Description   : { Value: status     }
     },
-    UI.Facets : [
-        {
-            $Type : 'UI.ReferenceFacet',
-            ID : 'GeneratedFacet1',
-            Label : 'General Information',
-            Target : '@UI.FieldGroup#GeneratedGroup',
-        },
+
+    UI.FieldGroup #General: {
+        $Type: 'UI.FieldGroupType',
+        Data : [
+            { $Type: 'UI.DataField', Value: status,      Label: 'Status'        },
+            { $Type: 'UI.DataField', Value: comment,     Label: 'Comment'       },
+            { $Type: 'UI.DataField', Value: requestedBy, Label: 'Requested By'  },
+            { $Type: 'UI.DataField', Value: approvedBy,  Label: 'Approved By'   },
+            { $Type: 'UI.DataField', Value: createdAt,   Label: 'Created'       },
+            { $Type: 'UI.DataField', Value: decidedAt,   Label: 'Decision Date' }
+        ]
+    },
+
+    UI.Facets: [{
+        $Type : 'UI.ReferenceFacet',
+        ID    : 'GeneralFacet',
+        Label : 'General Information',
+        Target: '@UI.FieldGroup#General'
+    }],
+
+    UI.LineItem: [
+        { $Type: 'UI.DataField', Value: task.title,  Label: 'Task'      },
+        { $Type: 'UI.DataField', Value: status,      Label: 'Status'    },
+        { $Type: 'UI.DataField', Value: requestedBy, Label: 'Requester' },
+        { $Type: 'UI.DataField', Value: createdAt,   Label: 'Created'   }
     ],
-    UI.LineItem : [
-        {
-            $Type : 'UI.DataField',
-            Label : 'status',
-            Value : status,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'comment',
-            Value : comment,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'requestedBy',
-            Value : requestedBy,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'approvedBy',
-            Value : approvedBy,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'decidedAt',
-            Value : decidedAt,
-        },
-    ],
+
+    UI.SelectionFields: [status],
+
+    UI.Identification: [
+        { $Type: 'UI.DataFieldForAction', Action: 'ApprovalService.approve',       Label: 'Approve' },
+        { $Type: 'UI.DataFieldForAction', Action: 'ApprovalService.rejectRequest', Label: 'Reject'  }
+    ]
 );
 
 annotate service.ApprovalRequests with {
-    task @Common.ValueList : {
-        $Type : 'Common.ValueListType',
-        CollectionPath : 'Tasks',
-        Parameters : [
-            {
-                $Type : 'Common.ValueListParameterInOut',
-                LocalDataProperty : task_ID,
-                ValueListProperty : 'ID',
-            },
-            {
-                $Type : 'Common.ValueListParameterDisplayOnly',
-                ValueListProperty : 'title',
-            },
-            {
-                $Type : 'Common.ValueListParameterDisplayOnly',
-                ValueListProperty : 'description',
-            },
-            {
-                $Type : 'Common.ValueListParameterDisplayOnly',
-                ValueListProperty : 'status',
-            },
-            {
-                $Type : 'Common.ValueListParameterDisplayOnly',
-                ValueListProperty : 'rejectionComment',
-            },
-        ],
-    }
+    status @(
+        Common.ValueListWithFixedValues: true,
+        Common.ValueList: {
+            CollectionPath: 'ApprovalRequests',
+            Parameters: [{
+                $Type            : 'Common.ValueListParameterOut',
+                LocalDataProperty: status,
+                ValueListProperty: 'status'
+            }]
+        }
+    )
 };
-

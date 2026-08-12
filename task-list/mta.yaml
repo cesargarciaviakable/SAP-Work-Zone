@@ -23,6 +23,7 @@ modules:
   requires:
   - name: task-list-auth
   - name: task-list-destination
+  - name: task-list-db
   provides:
   - name: srv-api
     properties:
@@ -52,6 +53,14 @@ modules:
       - tasklistapprovals.zip
       name: tasklistapprovals
       target-path: app/
+
+- name: task-list-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: task-list-db
+  parameters:
+    buildpack: nodejs_buildpack
 
 # ─── UI: Tasks ───────────────────────────────────────────
 - name: tasklisttasks
@@ -110,6 +119,13 @@ modules:
     no-source: true
 
 resources:
+
+# ─── HANA HDI Container ──────────────────────────────────
+- name: task-list-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
 
 # ─── XSUAA ───────────────────────────────────────────────
 - name: task-list-auth

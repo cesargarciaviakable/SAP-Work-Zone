@@ -2,6 +2,7 @@
   "name": "task-list",
   "version": "1.0.0",
   "dependencies": {
+    "@cap-js/hana": "^2.8.0",
     "@sap/cds": "^9",
     "@sap/xssec": "^4.15.0"
   },
@@ -11,6 +12,29 @@
     "cds-plugin-ui5": "^0.17.0",
     "mbt": "^1.2.49",
     "rimraf": "^5.0.5"
+  },
+  "cds": {
+    "fiori": {
+      "bypass_draft": true
+    },
+    "requires": {
+      "db": {
+        "[hybrid]": {
+          "kind": "hana"
+        },
+        "[production]": {
+          "kind": "hana"
+        }
+      },
+      "workflow": {
+        "kind": "mock"
+      }
+    },
+    "[production]": {
+      "requires": {
+        "auth": "xsuaa"
+      }
+    }
   },
   "scripts": {
     "start": "cds-serve",

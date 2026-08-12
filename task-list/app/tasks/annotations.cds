@@ -1,69 +1,53 @@
 using TaskService as service from '../../srv/task-service';
+
 annotate service.Tasks with @(
-    UI.FieldGroup #GeneratedGroup : {
-        $Type : 'UI.FieldGroupType',
-        Data : [
-            {
-                $Type : 'UI.DataField',
-                Label : 'title',
-                Value : title,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'description',
-                Value : description,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'status',
-                Value : status,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'rejectionComment',
-                Value : rejectionComment,
-            },
-            {
-                $Type : 'UI.DataField',
-                Label : 'criticality',
-                Value : criticality,
-            },
-        ],
+    Capabilities.InsertRestrictions: { Insertable: true  },
+    Capabilities.UpdateRestrictions: { Updatable : true  },
+    Capabilities.DeleteRestrictions: { Deletable : true  },
+
+    UI.HeaderInfo: {
+        TypeName      : 'Task',
+        TypeNamePlural: 'Tasks',
+        Title         : { Value: title  },
+        Description   : { Value: status }
     },
-    UI.Facets : [
-        {
-            $Type : 'UI.ReferenceFacet',
-            ID : 'GeneratedFacet1',
-            Label : 'General Information',
-            Target : '@UI.FieldGroup#GeneratedGroup',
-        },
+
+    UI.FieldGroup #GeneratedGroup: {
+        $Type: 'UI.FieldGroupType',
+        Data : [
+            { $Type: 'UI.DataField', Label: 'Title',            Value: title            },
+            { $Type: 'UI.DataField', Label: 'Description',      Value: description      },
+            { $Type: 'UI.DataField', Label: 'Status',           Value: status           },
+            { $Type: 'UI.DataField', Label: 'Rejection Reason', Value: rejectionComment }
+        ]
+    },
+
+    UI.Facets: [{
+        $Type : 'UI.ReferenceFacet',
+        ID    : 'GeneratedFacet1',
+        Label : 'General Information',
+        Target: '@UI.FieldGroup#GeneratedGroup'
+    }],
+
+    UI.LineItem: [
+        { $Type: 'UI.DataField', Label: 'Title',       Value: title       },
+        { $Type: 'UI.DataField', Label: 'Description', Value: description },
+        { $Type: 'UI.DataField', Label: 'Status',      Value: status      }
     ],
-    UI.LineItem : [
-        {
-            $Type : 'UI.DataField',
-            Label : 'title',
-            Value : title,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'description',
-            Value : description,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'status',
-            Value : status,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'rejectionComment',
-            Value : rejectionComment,
-        },
-        {
-            $Type : 'UI.DataField',
-            Label : 'criticality',
-            Value : criticality,
-        },
-    ],
+
+    UI.SelectionFields: [status]
 );
 
+annotate service.Tasks with {
+    status @(
+        Common.ValueListWithFixedValues: true,
+        Common.ValueList               : {
+        CollectionPath: 'Statuses',
+            Parameters    : [{
+                $Type            : 'Common.ValueListParameterOut',
+                LocalDataProperty: status,
+                ValueListProperty: 'value'
+            }]
+        },
+    )
+};
