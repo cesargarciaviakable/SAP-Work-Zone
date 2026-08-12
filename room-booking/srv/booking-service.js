@@ -1,5 +1,4 @@
 const cds = require('@sap/cds')
-const { message } = require('@sap/cds/lib/log/cds-error')
 const { SELECT, UPDATE } = require('@sap/cds/lib/ql/cds-ql')
 
 module.exports = class BookingService extends cds.ApplicationService {
@@ -7,8 +6,8 @@ module.exports = class BookingService extends cds.ApplicationService {
         const { Bookings, Rooms } = this.entities
 
         // Validaciones antes de crear una reservación
-        this.befores('CREATE', Bookings, async (req) => {
-            const { room_ID, startTime, endTime, attendees } = req.data
+        this.before('SAVE', Bookings, async (req) => {
+            const { room_ID, startTime, endTime, attendees, ID } = req.data
 
             // 1. Validar que endTime > startTime
             if (new Date(endTime) <= new Date(startTime)) {
@@ -35,22 +34,28 @@ module.exports = class BookingService extends cds.ApplicationService {
             const overlap = await SELECT.one.from(Bookings).where({
                 room_ID,
                 status: 'confirmed',
+                ID: { '!=': ID },
                 and: {
                     startTime: { '<': endTime },
-                    endTime: { '>': startTime }
+                    endTime  : { '>': startTime }
                 }
             })
 
             if (overlap) {
+                const toLocal = (utc) => new Date(utc).toLocaleString('es-MX', {
+                    timeZone    : 'America/Monterrey',
+                    dateStyle   : 'medium',
+                    timeStyle   : 'short'
+                })
                 return req.error(409,
-                    `La sala ya tiene una reservación de
-                    ${overlap.startTime} a ${overlap.endTime}`
+                    `La sala ya tiene una reservación de ${toLocal(overlap.startTime)} a ${toLocal(overlap.endTime)}.`
                 )
             }
         })
 
         // Mismas validaciones al actualizar
         this.before('UPDATE', Bookings, async (req) => {
+            if (!req.data.ID) return
             const booking = await SELECT.one.from(Bookings).where({ ID: req.data.ID })
             if (!booking) return req.error(400, 'Reservación no encontrada.')
             if (booking.status === 'cancelled') {
@@ -59,32 +64,23 @@ module.exports = class BookingService extends cds.ApplicationService {
         })
 
         // Action: Cancelar reservación
-        this.on('cancelBooking', async (req) => {
-            const { bookingId } = req.data
+        this.on('cancelBooking', Bookings, async (req) => {
+            const { ID } = req.params[0]
 
-            const booking = await SELECT.one.from(Bookings)
-                .where({ ID: bookingId })
-
-            if (!booking) {
-                return req.error(404, 'Reservación no encontrada.')
-            }
-
-            if (booking.status === 'cancelled') {
-                return req.error(400, 'La reservación ya está cancelada.')
-            }
+            const booking = await SELECT.one.from(Bookings).where({ ID })
+            if (!booking) return req.error(404, 'Reservación no encontrada.')
+            if (booking.status === 'cancelled') return req.error(400, 'La reservación ya está cancelada.')
 
             await UPDATE(Bookings)
                 .set({ status: 'cancelled'})
-                .where({ ID: bookingId })
+                .where({ ID })
 
-            return { message: 'Reservación cancelada exitosamente.', success: true }
+            return SELECT.one.from(Bookings).where({ ID })
         })
 
         // Function: Salas disponibles
         this.on('getAvailableRooms', async (req) => {
             const { startTime, endTime, capacity = 1 } = req.data
-
-            const { Bookings, Rooms } = this.entities
 
             // IDs de salas ocupadas en ese horario
             const occupied = await SELECT
@@ -105,7 +101,7 @@ module.exports = class BookingService extends cds.ApplicationService {
                 .where({ capacity: {'>=': capacity } })
 
             // Filtrar las ocupadas en memoria
-            const result = available
+            return available
                 .filter(r => !occupiedIds.includes(r.ID))
                 .map(r => ({
                     id          : r.ID,
@@ -114,8 +110,6 @@ module.exports = class BookingService extends cds.ApplicationService {
                     floor       : r.floor,
                     buildingName: r.building_ID
                 }))
-
-            return result
         })
 
         await super.init()

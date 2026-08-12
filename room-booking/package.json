@@ -2,14 +2,36 @@
   "name": "room-booking",
   "version": "1.0.0",
   "dependencies": {
-    "@sap/cds": "^9"
+    "@cap-js/hana": "^2.8.0",
+    "@sap/cds": "^9",
+    "@sap/xssec": "^4.15.0"
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2.4",
-    "cds-plugin-ui5": "^0.17.0",
     "@sap/cds-dk": "^9",
-    "rimraf": "^5.0.5",
-    "mbt": "^1.2.49"
+    "cds-plugin-ui5": "^0.17.0",
+    "mbt": "^1.2.49",
+    "rimraf": "^5.0.5"
+  },
+  "cds": {
+    "fiori": {
+      "bypass_draft": true
+    },
+    "requires": {
+      "db": {
+        "[hybrid]": {
+          "kind": "hana"
+        },
+        "[production]": {
+          "kind": "hana"
+        }
+      }
+    },
+    "[production]": {
+      "requires": {
+        "auth": "xsuaa"
+      }
+    }
   },
   "scripts": {
     "start": "cds-serve",

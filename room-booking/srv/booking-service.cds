@@ -7,13 +7,14 @@ service BookingService {
     @cds.redirection.target
     entity Rooms     as projection on db.Rooms;
 
+    entity Employees as projection on db.Employees;
+
+    @odata.draft.enabled
     entity Bookings  as projection on db.Bookings {
         *,
-        case status
-            when 'confirmed' then 3 // 3 = Positive
-            when 'cancelled' then 1 // 1 = Negative
-            else 2                  // 2 = Warning
-        end as criticality : Integer
+        room.capacity      as roomCapacity : Integer,
+        room.floor         as roomFloor    : Integer,
+        room.building.name as roomBuilding : String
     };
 
     // View de solo lectura - salas con disponibilidad
@@ -21,13 +22,7 @@ service BookingService {
     entity RoomsView as select from db.Rooms {
         *,
         building.name as buildingName : String
-    } excluding {
-        bookings
-    };
-
-    // Actions
-    action cancelBooking(bookingId : UUID)
-        returns { message : String; success : Boolean; };
+    } excluding { bookings };
 
     // Functions
     function getAvailableRooms(
