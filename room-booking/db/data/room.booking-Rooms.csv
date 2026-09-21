@@ -1,0 +1,8 @@
+ID;name;capacity;floor;hasTV;hasBoard;building_ID
+12af020c-8a12-4691-a8d7-b5c6a02f724a;Sala Águila;8;1;true;true;e4c1bc89-66fa-445f-8f5b-ff997c09ea0c
+461d40bb-3c84-4c5f-9fb6-1270e60e79e8;Sala Halcón;4;2;true;false;e4c1bc89-66fa-445f-8f5b-ff997c09ea0c
+0c546689-5882-4df9-ae22-48b152a4d1de;Sala Cóndor;12;3;true;true;e4c1bc89-66fa-445f-8f5b-ff997c09ea0c
+34748aeb-a285-4e81-b7ae-590fa54abeae;Sala Colibrí;2;1;false;false;e4c1bc89-66fa-445f-8f5b-ff997c09ea0c
+90945d4f-8765-41ee-bc2f-1403b0a3bb06;Sala Jaguar;10;1;true;true;927c2a74-ce39-4725-aa3a-988c250a5856
+1670d9c4-409f-4369-8db1-d0be57190c6a;Sala Quetzal;6;2;true;false;927c2a74-ce39-4725-aa3a-988c250a5856
+55ee7bf6-c302-4edb-9153-bdb247baa2e9;Sala Ocelote;4;1;false;true;927c2a74-ce39-4725-aa3a-988c250a5856
