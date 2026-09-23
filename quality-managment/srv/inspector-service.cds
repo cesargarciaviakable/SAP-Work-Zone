@@ -43,11 +43,24 @@ service InspectorService {
     @restrict: [
         { grant: 'READ',   to: 'Inspector' },
         { grant: 'CREATE', to: 'Inspector' },
-        { grant: 'UPDATE', to: 'Inspector', where: 'status_code ''ABIERTA''' }
+        { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''ABIERTA''' },
+        { grant: 'completarInspeccion', to: 'Inspector' }
     ]
     entity Inspecciones as projection on db.Inspecciones {
         *,
+        // Drives UI field control: only ABIERTA inspections are editable
+        case when status.code = 'ABIERTA' then true else false end as esEditable : Boolean,
+        // Common.FieldControlType: 3 = Optional, 7 = Mandatory, 1 = ReadOnly
+        case when status.code = 'ABIERTA' then 3 else 1 end as controlCampo : Integer,
+        case when status.code = 'ABIERTA' then 7 else 1 end as controlObligatorio : Integer,
+        lote       : redirected to Lotes,
         resultados : redirected to ResultadosInspeccion
+    } actions {
+        // Bound action: closes the inspection and sends it to supervisor review
+        action completarInspeccion() returns {
+            mensaje : String;
+            status  : String;
+        };
     };
 
     // Resultados
@@ -58,10 +71,4 @@ service InspectorService {
         { grant: 'DELETE', to: 'Inspector' }
     ]
     entity ResultadosInspeccion as projection on db.ResultadosInspeccion;
-
-    // Accion para cerrar la inspeccion y enviarla a revision
-    action completarInspeccion(inspeccionId : UUID) returns {
-        mensaje : String;
-        status  : String;
-    };
 }

@@ -163,7 +163,17 @@
           "options": {
             "settings": {
               "editableHeaderContent": false,
-              "contextPath": "/Lotes/inspecciones"
+              "contextPath": "/Lotes/inspecciones",
+              "controlConfiguration": {
+                "resultados/@com.sap.vocabularies.UI.v1.LineItem#Resultados": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable",
+                    "creationMode": {
+                      "name": "Inline"
+                    }
+                  }
+                }
+              }
             }
           }
         }

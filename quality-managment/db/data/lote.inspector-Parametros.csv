@@ -1,8 +1,8 @@
 ID,codigo,descripcion,tipoParametro_code,unidadMedida,activo
-301,DIM-001,Diámetro exterior,DIMENSIONAL,mm,true
-302,DIM-002,Espesor de aislante,DIMENSIONAL,mm,true
-303,DIM-003,Peso por metro,DIMENSIONAL,g/m,true
-304,ELE-001,Resistencia eléctrica,ELECTRICO,Ω/km,true
-305,ELE-002,Voltaje de ruptura,ELECTRICO,kV,true
-306,VIS-001,Inspección superficial,VISUAL,,true
-307,VIS-002,Color de cubierta,VISUAL,,true
+00000000-0000-0000-0000-000000000301,DIM-001,Diámetro exterior,DIMENSIONAL,mm,true
+00000000-0000-0000-0000-000000000302,DIM-002,Espesor de aislante,DIMENSIONAL,mm,true
+00000000-0000-0000-0000-000000000303,DIM-003,Peso por metro,DIMENSIONAL,g/m,true
+00000000-0000-0000-0000-000000000304,ELE-001,Resistencia eléctrica,ELECTRICO,Ω/km,true
+00000000-0000-0000-0000-000000000305,ELE-002,Voltaje de ruptura,ELECTRICO,kV,true
+00000000-0000-0000-0000-000000000306,VIS-001,Inspección superficial,VISUAL,,true
+00000000-0000-0000-0000-000000000307,VIS-002,Color de cubierta,VISUAL,,true
