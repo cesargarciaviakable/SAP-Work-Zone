@@ -66,19 +66,32 @@ service ReportsService {
 
     // Vista: rendimiento por linea de produccion
     @readonly
-    entity RendimeintoPorLinea as select from db.Lotes as l join db.LineasProduccion as lp on lp.ID = l.lineaProduccion.ID
+    entity RendimientoPorLinea as select from db.Lotes as l join db.LineasProduccion as lp on lp.ID = l.lineaProduccion.ID
     {
-        key lp.codigo as codigoLinea : String,
-            lp.descripcion as lineas : String,
-            count(l.ID) as totalLotes : Integer,
-            count(case when l.status.code = 'APROBADO' then 1 end) as aprobados : Integer,
-            count(case when l.status.code = 'RECHAZADO' then 1 end) as rechazados : Integer,
-            count(case when l.status.code = 'APROBADO_CON_DESVIACION' then 1 end) as conDesviacion : Integer
+        key lp.codigo      as codigoLinea   : String,
+            lp.descripcion as linea         : String,
+            count(l.ID)    as totalLotes    : Integer,
+            count(case when l.status.code = 'APROBADO' then 1 end)                as aprobados     : Integer,
+            count(case when l.status.code = 'RECHAZADO' then 1 end)               as rechazados    : Integer,
+            count(case when l.status.code = 'APROBADO_CON_DESVIACION' then 1 end) as conDesviacion : Integer,
+            // Share of decided lotes released without deviation (0-100)
+            round(
+                100.0 * count(case when l.status.code = 'APROBADO' then 1 end)
+                / nullif(count(case when l.status.code in ('APROBADO', 'RECHAZADO', 'APROBADO_CON_DESVIACION') then 1 end), 0)
+            , 2) as porcentajeAprobacion : Decimal(5,2),
+            // UI criticality for porcentajeAprobacion: 3 good, 2 warning, 1 bad, 0 no data
+            case
+                when count(case when l.status.code in ('APROBADO', 'RECHAZADO', 'APROBADO_CON_DESVIACION') then 1 end) = 0 then 0
+                when 100.0 * count(case when l.status.code = 'APROBADO' then 1 end)
+                     / count(case when l.status.code in ('APROBADO', 'RECHAZADO', 'APROBADO_CON_DESVIACION') then 1 end) >= 80 then 3
+                when 100.0 * count(case when l.status.code = 'APROBADO' then 1 end)
+                     / count(case when l.status.code in ('APROBADO', 'RECHAZADO', 'APROBADO_CON_DESVIACION') then 1 end) >= 50 then 2
+                else 1
+            end as criticidadAprobacion : Integer
     }
     group by lp.codigo, lp.descripcion;
 
     // Funcion: lotes por rango de fechas
-    @readonly
     function lotesEnRango(
         fechaInicio : Date,
         fechaFin    : Date

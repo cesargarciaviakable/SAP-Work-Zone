@@ -62,7 +62,11 @@
       "libs": {
         "sap.m": {},
         "sap.ui.core": {},
-        "sap.fe.templates": {}
+        "sap.fe.templates": {},
+        "sap.viz": {},
+        "sap.suite.ui.microchart": {
+          "lazy": true
+        }
       }
     },
     "contentDensities": {
@@ -122,6 +126,30 @@
                     "route": "LotesConDecisionObjectPage"
                   }
                 }
+              },
+              "views": {
+                "paths": [
+                  {
+                    "key": "decisiones",
+                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Decisiones"
+                  },
+                  {
+                    "key": "status",
+                    "entitySet": "ResumenLotesPorStatus",
+                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Status"
+                  },
+                  {
+                    "key": "rendimiento",
+                    "entitySet": "RendimientoPorLinea",
+                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Rendimiento"
+                  },
+                  {
+                    "key": "fallas",
+                    "entitySet": "ParametrosFallidos",
+                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Fallas"
+                  }
+                ],
+                "showCounts": false
               },
               "controlConfiguration": {
                 "@com.sap.vocabularies.UI.v1.LineItem": {
