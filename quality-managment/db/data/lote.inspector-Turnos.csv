@@ -1,0 +1,4 @@
+code,name,descr
+M,Mañana,Turno de 6:00 a 14:00
+V,Vespertino,Turno de 14:00 a 22:00
+N,Nocturno,Turno de 22:00 a 6:00

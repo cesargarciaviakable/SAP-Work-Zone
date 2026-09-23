@@ -1,0 +1,6 @@
+code,name,descr
+PENDIENTE,Pendiente,Lote creado pendiente de inspección
+EN_INSPECCION,En Inspección,Lote siendo inspeccionado actualmente
+APROBADO,Aprobado,Lote liberado sin observaciones
+RECHAZADO,Rechazado,Lote rechazado por incumplimiento
+APROBADO_CON_DESVIACION,Aprobado con Desviación,Lote liberado con desviación justificada

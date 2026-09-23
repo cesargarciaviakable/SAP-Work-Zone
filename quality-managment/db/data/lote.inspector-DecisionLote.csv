@@ -1,0 +1,5 @@
+ID,inspeccion_ID,decision_code,justificacion,createdBy,createdAt
+801,601,LIBERAR,Lote cumple todos los parámetros de calidad,supervisor@viakable.com,2026-09-01T12:00:00Z
+802,602,RECHAZAR,Espesor de aislante fuera de especificación mínima,supervisor@viakable.com,2026-09-05T16:00:00Z
+803,603,LIBERAR_CON_DESVIACION,Desviación de 0.02mm en diámetro dentro de tolerancia de proceso,supervisor@viakable.com,2026-09-10T11:00:00Z
+804,604,LIBERAR,Lote cumple todos los parámetros de calidad,supervisor@viakable.com,2026-09-12T18:00:00Z

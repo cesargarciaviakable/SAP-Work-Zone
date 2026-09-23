@@ -1,0 +1,6 @@
+ID,lote_ID,fechaInspeccion,status_code,observaciones
+601,501,2026-09-01T10:00:00Z,COMPLETADA,Inspección sin observaciones
+602,502,2026-09-05T14:00:00Z,COMPLETADA,Se detectaron burbujas en el aislante
+603,503,2026-09-10T09:00:00Z,COMPLETADA,Diámetro ligeramente fuera de rango inferior
+604,504,2026-09-12T16:00:00Z,COMPLETADA,Inspección sin observaciones
+605,505,2026-09-15T08:00:00Z,ABIERTA,En proceso de medición

@@ -1,0 +1,4 @@
+code,name,descr
+ABIERTA,Abierta,Inspección en proceso
+COMPLETADA,Completada,Inspección finalizada con decisión
+CANCELADA,Cancelada,Inspección cancelada

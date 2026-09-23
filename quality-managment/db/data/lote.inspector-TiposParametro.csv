@@ -1,0 +1,5 @@
+code,name,descr
+DIMENSIONAL,Dimensional,Medidas físicas como longitud peso o diámetro
+ELECTRICO,Eléctrico,Parámetros eléctricos como voltaje o resistencia
+VISUAL,Visual,Inspección visual pasa o no pasa
+QUIMICO,Químico,Composición o propiedades químicas

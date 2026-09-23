@@ -1,0 +1,69 @@
+{
+  "xsappname": "quality-managment",
+  "tenant-mode": "dedicated",
+  "description": "Security config for Quality Management - Lote Inspector",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Inspector",
+      "description": "Captura resultados de inspección de lotes"
+    },
+    {
+      "name": "$XSAPPNAME.SupervisorCalidad",
+      "description": "Revisa inspecciones y toma decisiones de liberación"
+    },
+    {
+      "name": "$XSAPPNAME.Administrador",
+      "description": "Acceso completo incluyendo catálogos y reportes"
+    }
+  ],
+  "attributes": [],
+  "role-templates": [
+    {
+      "name": "Inspector",
+      "description": "Inspector de calidad — captura resultados",
+      "scope-references": [
+        "$XSAPPNAME.Inspector"
+      ]
+    },
+    {
+      "name": "SupervisorCalidad",
+      "description": "Supervisor de calidad — aprueba o rechaza lotes",
+      "scope-references": [
+        "$XSAPPNAME.SupervisorCalidad",
+        "$XSAPPNAME.Inspector"
+      ]
+    },
+    {
+      "name": "Administrador",
+      "description": "Administrador — acceso total",
+      "scope-references": [
+        "$XSAPPNAME.Inspector",
+        "$XSAPPNAME.SupervisorCalidad",
+        "$XSAPPNAME.Administrador"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "QM_Inspector",
+      "description": "Colección para inspectores de calidad",
+      "role-template-references": [
+        "$XSAPPNAME.Inspector"
+      ]
+    },
+    {
+      "name": "QM_Supervisor",
+      "description": "Colección para supervisores de calidad",
+      "role-template-references": [
+        "$XSAPPNAME.SupervisorCalidad"
+      ]
+    },
+    {
+      "name": "QM_Administrador",
+      "description": "Colección para administradores del sistema",
+      "role-template-references": [
+        "$XSAPPNAME.Administrador"
+      ]
+    }
+  ]
+}

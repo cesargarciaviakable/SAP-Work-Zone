@@ -1,0 +1,73 @@
+{
+  "name": "quality-managment",
+  "version": "1.0.0",
+  "description": "SAP CAP Quality Management - Lote Inspector",
+  "repository": "<Add your repository here>",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@sap/cds": "^10",
+    "@cap-js/hana": "*",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "*",
+    "@sap/cds-dk": "^10",
+    "cds-plugin-ui5": "^0.17.0",
+    "rimraf": "^5.0.5",
+    "mbt": "^1.2.49"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "watch-qm-inspector": "cds watch --open lote.inspector.app.qminspector/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "undeploy": "cf undeploy quality-managment --delete-services --delete-service-keys --delete-service-brokers",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
+    "watch-qm-supervisor": "cds watch --open lote.inspector.app.qmsupervisor/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "[production]": {
+          "kind": "hana-cloud"
+        }
+      },
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "alice": {
+            "password": "",
+            "roles": [
+              "Inspector",
+              "SupervisorCalidad",
+              "Administrador"
+            ]
+          },
+          "bob": {
+            "password": "",
+            "roles": [
+              "Inspector"
+            ]
+          },
+          "carol": {
+            "password": "",
+            "roles": [
+              "SupervisorCalidad"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "workspaces": [
+    "app/*"
+  ],
+  "sapux": [
+    "app/qm-inspector",
+    "app/qm-supervisor",
+    "app/qm-dashboard"
+  ]
+}

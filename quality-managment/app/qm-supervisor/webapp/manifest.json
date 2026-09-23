@@ -1,0 +1,182 @@
+{
+  "_version": "1.89.0",
+  "sap.app": {
+    "id": "lote.inspector.app.qmsupervisor",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:lrop",
+      "version": "1.32.0",
+      "toolsId": "2d5009af-8fcb-4581-aa71-392401c16ebc"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/supervisor/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "odataVersion": "4.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "LoteDecision-approve": {
+          "semanticObject": "LoteDecision",
+          "action": "approve",
+          "title": "{{LoteDecision-approve.flpTitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.152.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "lote.inspector.app.qmsupervisor.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      },
+      "@i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      }
+    },
+    "resources": {
+      "css": []
+    },
+    "routing": {
+      "config": {},
+      "routes": [
+        {
+          "pattern": ":?query:",
+          "name": "InspeccionesList",
+          "target": "InspeccionesList"
+        },
+        {
+          "pattern": "Inspecciones({key}):?query:",
+          "name": "InspeccionesObjectPage",
+          "target": "InspeccionesObjectPage"
+        },
+        {
+          "pattern": "Inspecciones({key})/resultados({key2}):?query:",
+          "name": "ResultadosInspeccionObjectPage",
+          "target": "ResultadosInspeccionObjectPage"
+        }
+      ],
+      "targets": {
+        "InspeccionesList": {
+          "type": "Component",
+          "id": "InspeccionesList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "contextPath": "/Inspecciones",
+              "variantManagement": "Page",
+              "navigation": {
+                "Inspecciones": {
+                  "detail": {
+                    "route": "InspeccionesObjectPage"
+                  }
+                }
+              },
+              "controlConfiguration": {
+                "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "InspeccionesObjectPage": {
+          "type": "Component",
+          "id": "InspeccionesObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/Inspecciones",
+              "navigation": {
+                "resultados": {
+                  "detail": {
+                    "route": "ResultadosInspeccionObjectPage"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ResultadosInspeccionObjectPage": {
+          "type": "Component",
+          "id": "ResultadosInspeccionObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/Inspecciones/resultados"
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  },
+  "sap.fe": {
+    "app": {
+      "enableLazyLoading": true
+    }
+  }
+}

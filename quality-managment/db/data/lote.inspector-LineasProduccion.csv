@@ -1,0 +1,5 @@
+ID,codigo,descripcion,planta,activo
+201,L-001,Línea de Extrusión A,Planta Norte,true
+202,L-002,Línea de Extrusión B,Planta Norte,true
+203,L-003,Línea de Ensamble,Planta Sur,true
+204,L-004,Línea de Empaque,Planta Sur,true

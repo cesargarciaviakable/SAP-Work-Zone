@@ -1,0 +1,4 @@
+code,name,descr
+LIBERAR,Liberar,Lote cumple todos los parámetros
+RECHAZAR,Rechazar,Lote no cumple parámetros mínimos
+LIBERAR_CON_DESVIACION,Liberar con Desviación,Lote liberado con justificación documentada

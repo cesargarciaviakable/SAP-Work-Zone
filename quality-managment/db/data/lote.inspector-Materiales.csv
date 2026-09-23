@@ -1,0 +1,6 @@
+ID,codigo,descripcion,unidad,activo
+101,MAT-001,Cable de Cobre AWG 12,m,true
+102,MAT-002,Cable de Aluminio AWG 8,m,true
+103,MAT-003,Conector RJ45 Cat6,pza,true
+104,MAT-004,Tubo Conduit 1/2 pulgada,m,true
+105,MAT-005,Cinta Aislante PVC,rollo,true
