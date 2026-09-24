@@ -7,6 +7,14 @@ using InspectorService as service from '../../srv/inspector-service';
 
 annotate service.Lotes with @odata.draft.enabled;
 
+// Hide Edit/Delete on closed lotes instead of failing with 403
+annotate service.Lotes with @(
+  UI.UpdateHidden: edicionOculta,
+  UI.DeleteHidden: edicionOculta
+) {
+  edicionOculta @UI.Hidden;
+};
+
 
 // ═════════════════════════════════════════════════════════════
 // VALUE LISTS
