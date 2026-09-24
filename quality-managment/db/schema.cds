@@ -47,7 +47,7 @@ entity Materiales : cuid, managed {
   descripcion     : String(100) not null;
   unidad          : String(10);
   activo          : Boolean default true;
-  parametros      : Association to many ParametrosMaterial on parametros.material = $self;
+  parametros      : Composition of many ParametrosMaterial on parametros.material = $self;
 }
 
 entity LineasProduccion : cuid, managed {
@@ -67,6 +67,7 @@ entity Parametros : cuid, managed {
 
 // Relación Material ↔ Parámetros esperados
 // Permite que cada material tenga sus propios rangos de aceptación
+@assert.unique: { materialParametro: [material, parametro] }
 entity ParametrosMaterial : cuid {
   material        : Association to Materiales not null;
   parametro       : Association to Parametros not null;
