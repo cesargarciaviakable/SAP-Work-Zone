@@ -48,12 +48,14 @@ annotate service.Inspecciones with @(
       Label: '% Cumplimiento'
     },
     {
-      Value: decision.decision_code,
-      Label: 'Decisión'
-    },
-    {
       Value: lote.status_code,
       Label: 'Status Lote'
+    },
+    {
+      Value: decision.decision_code,
+      Label: 'Decisión',
+      // High importance keeps the column visible on narrow screens
+      ![@UI.Importance]: #High
     }
   ],
 
