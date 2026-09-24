@@ -60,7 +60,7 @@ module.exports = class InspectorService extends cds.ApplicationService {
         // literal columns on the drafts table — unlike the active entity,
         // where they are recomputed on every read (see inspector-service.cds)
         // — so they must be maintained by hand on every NEW/PATCH.
-        const aplicarControlesDraft = (data, { tipoVisual, cumple } = {}, cumpleVisualPrevio) => {
+        const aplicarControlesDraft = (data, { tipoVisual, cumple } = {}, cumpleVisualPrevio, parametroCambio = false) => {
 
             if (tipoVisual === undefined) {
                 data.esVisual = false
@@ -74,9 +74,18 @@ module.exports = class InspectorService extends cds.ApplicationService {
             data.controlValorObtenido = tipoVisual ? 1 : 3
             data.controlCumpleVisual = tipoVisual ? 3 : 1
 
-            // Numeric: the server always owns cumpleVisual, a stale/forged
-            // client value must never persist. Visual: never touched here.
-            if (!tipoVisual) data.cumpleVisual = cumple ?? null
+            if (!tipoVisual) {
+                // Numeric: the server always owns cumpleVisual, a stale/forged
+                // client value must never persist.
+                data.cumpleVisual = cumple ?? null
+            } else if (parametroCambio && !('cumpleVisual' in data)) {
+                // VISUAL, and this PATCH just switched the parametro away
+                // from a numeric one (R3-param-switch-stale-cumple): a
+                // leftover server-computed cumpleVisual must not survive
+                // the switch and be mistaken for a user choice. An
+                // explicit cumpleVisual sent in the same PATCH wins.
+                data.cumpleVisual = null
+            }
 
             const cumpleFinal = 'cumpleVisual' in data ? data.cumpleVisual : cumpleVisualPrevio
             data.criticidad = cumpleFinal === true ? 3 : cumpleFinal === false ? 1 : 0
@@ -242,6 +251,29 @@ module.exports = class InspectorService extends cds.ApplicationService {
         })
 
 
+        // Rejects deleting a lote that has a non-ABIERTA (already worked)
+        // inspección: the composition would otherwise cascade-delete it,
+        // bypassing the Inspecciones DELETE grant (only ABIERTA
+        // inspecciones may be deleted directly). R3-lote-delete-cascade.
+        this.before('DELETE', Lotes, async (req) => {
+
+            const loteId = req.params.at(-1)?.ID
+
+            const noAbiertas = await SELECT.one
+                .from(Inspecciones)
+                .columns('count(1) as total')
+                .where({ lote_ID: loteId })
+                .and('status_code !=', 'ABIERTA')
+
+            if (noAbiertas?.total > 0) {
+                return req.error(
+                    409,
+                    'No se puede eliminar un lote con inspecciones completadas'
+                )
+            }
+        })
+
+
         // Live unidad while editing the draft — paired with
         // @Common.SideEffects #Material in the app annotations
         this.before(['NEW', 'PATCH'], Lotes.drafts, async (req) => {
@@ -395,10 +427,11 @@ module.exports = class InspectorService extends cds.ApplicationService {
 
             const parametroId = req.data.parametro_ID ?? draft.parametro_ID
             const valorObtenido = 'valorObtenido' in req.data ? req.data.valorObtenido : draft.valorObtenido
+            const parametroCambio = 'parametro_ID' in req.data && req.data.parametro_ID !== draft.parametro_ID
 
             const resultado = await evaluarCumplimiento(lote?.material_ID, parametroId, valorObtenido)
 
-            aplicarControlesDraft(req.data, resultado, draft.cumpleVisual)
+            aplicarControlesDraft(req.data, resultado, draft.cumpleVisual, parametroCambio)
         })
 
 
