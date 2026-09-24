@@ -79,6 +79,14 @@ modules:
       - loteinspectorappqmdashboard.zip
       name: loteinspectorappqmdashboard
       target-path: resources/
+    - artifacts:
+      - loteinspectorappqmrangos.zip
+      name: loteinspectorappqmrangos
+      target-path: resources/
+    - artifacts:
+      - loteinspectorappqmparametros.zip
+      name: loteinspectorappqmparametros
+      target-path: resources/
 - name: loteinspectorappqminspector
   type: html5
   path: app/qm-inspector
@@ -102,6 +110,26 @@ modules:
 - name: loteinspectorappqmdashboard
   type: html5
   path: app/qm-dashboard
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: loteinspectorappqmrangos
+  type: html5
+  path: app/qm-rangos
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: loteinspectorappqmparametros
+  type: html5
+  path: app/qm-parametros
   build-parameters:
     build-result: dist
     builder: custom

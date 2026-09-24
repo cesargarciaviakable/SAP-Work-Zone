@@ -128,6 +128,46 @@ describe('ConfigService', () => {
         })
     })
 
+    describe('ParametrosMaterial — control de campo (draft)', () => {
+
+        it('marks a new numeric parametro range as editable (esVisual false, controlRango 3)', async () => {
+            const materialId = await crearMaterialDraft()
+
+            const { data } = await POST(
+                `/config/Materiales(ID=${materialId},IsActiveEntity=false)/parametros`,
+                { parametro_ID: PARAM_NUMERICO_A }
+            )
+
+            expect(data.esVisual).to.equal(false)
+            expect(data.controlRango).to.equal(3)
+        })
+
+        it('marks a new VISUAL parametro range as read-only (esVisual true, controlRango 1)', async () => {
+            const materialId = await crearMaterialDraft()
+
+            const { data } = await POST(
+                `/config/Materiales(ID=${materialId},IsActiveEntity=false)/parametros`,
+                { parametro_ID: PARAM_VISUAL }
+            )
+
+            expect(data.esVisual).to.equal(true)
+            expect(data.controlRango).to.equal(1)
+        })
+
+        it('recomputes the field control live when the parametro changes on an existing draft row', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 1, valorMaximo: 5 })
+
+            const { data } = await PATCH(
+                `/config/ParametrosMaterial(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_VISUAL, valorMinimo: null, valorMaximo: null }
+            )
+
+            expect(data.esVisual).to.equal(true)
+            expect(data.controlRango).to.equal(1)
+        })
+    })
+
     describe('Parametros — catálogo', () => {
 
         it('creates and edits a parametro', async () => {
@@ -202,6 +242,25 @@ describe('ConfigService', () => {
             } catch (e) {
                 expect(e.response.status).to.equal(403)
             }
+        })
+    })
+
+    describe('UI annotations — qm-rangos/qm-parametros metadata', () => {
+
+        it('exposes the field control and side-effects terms the apps rely on', async () => {
+            const { data } = await GET('/config/$metadata')
+
+            // valorMinimo/valorMaximo become read-only when controlRango says so
+            expect(data).to.match(/Target="ConfigService\.ParametrosMaterial\/valorMinimo"[\s\S]*?FieldControl" Path="controlRango"/)
+            expect(data).to.match(/Target="ConfigService\.ParametrosMaterial\/valorMaximo"[\s\S]*?FieldControl" Path="controlRango"/)
+
+            // changing the parametro refreshes the derived field control
+            expect(data).to.include('Term="Common.SideEffects" Qualifier="Parametro"')
+            expect(data).to.include('<String>esVisual</String>')
+            expect(data).to.include('<String>controlRango</String>')
+
+            // value help for parametro on the range row
+            expect(data).to.include('Property="CollectionPath" String="Parametros"')
         })
     })
 })
