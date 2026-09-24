@@ -121,7 +121,7 @@ annotate service.ParametrosMaterial with {
     @Common.Text: parametro.descripcion
     @Common.TextArrangement: #TextFirst
     @Common.ValueList: {
-      CollectionPath: 'Parametros',
+      CollectionPath: 'ParametrosVH',
       SearchSupported: true,
 
       Parameters: [

@@ -20,3 +20,6 @@ mta_archives/
 
 dist/
 resources/
+
+db.sqlite-shm
+db.sqlite-wal
