@@ -173,6 +173,24 @@ describe('ConfigService', () => {
                 POST(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)/ConfigService.draftActivate`, {})
             )
         })
+
+        it('allows editing a VISUAL parametro that is already used by a material', async () => {
+            const parametroId = await crearParametroDraft({ tipoParametro_code: 'VISUAL', unidadMedida: null })
+            await activarParametro(parametroId)
+
+            const materialId = await crearMaterialDraft()
+            await agregarRangoDraft(materialId, parametroId)
+            await activarMaterial(materialId)
+
+            await editarParametro(parametroId)
+            await PATCH(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)`, {
+                descripcion: 'Descripción visual editada'
+            })
+            await activarParametro(parametroId)
+
+            const { data } = await GET(`/config/Parametros(ID=${parametroId},IsActiveEntity=true)`)
+            expect(data.descripcion).to.equal('Descripción visual editada')
+        })
     })
 
     describe('Access control', () => {

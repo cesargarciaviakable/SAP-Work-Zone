@@ -111,7 +111,16 @@ module.exports = class ConfigService extends cds.ApplicationService {
             // numeric ranges that would become invalid, or were already
             // range-less because they belonged to a VISUAL parametro — either
             // way the switch must not silently reinterpret prior data.
-            if (id && req.data.tipoParametro_code === TIPO_VISUAL) {
+            // Draft activation resends the full row, so only an actual type
+            // change counts: an already-VISUAL parametro stays editable.
+            if (req.event === 'UPDATE' && req.data.tipoParametro_code === TIPO_VISUAL) {
+
+                const actual = await SELECT.one
+                    .from(Parametros)
+                    .columns('tipoParametro_code')
+                    .where({ ID: id })
+
+                if (!actual || actual.tipoParametro_code === TIPO_VISUAL) return
 
                 const conRangos = await SELECT.one
                     .from(ParametrosMaterial)
