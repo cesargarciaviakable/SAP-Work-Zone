@@ -2,6 +2,13 @@
   "xsappname": "quality-managment",
   "tenant-mode": "dedicated",
   "description": "Security config for Quality Management - Lote Inspector",
+  "oauth2-configuration": {
+    "token-validity": 3600,
+    "refresh-token-validity": 43200,
+    "redirect-uris": [
+      "https://*.hana.ondemand.com/**"
+    ]
+  },
   "scopes": [
     {
       "name": "$XSAPPNAME.Inspector",
@@ -29,8 +36,7 @@
       "name": "SupervisorCalidad",
       "description": "Supervisor de calidad — aprueba o rechaza lotes",
       "scope-references": [
-        "$XSAPPNAME.SupervisorCalidad",
-        "$XSAPPNAME.Inspector"
+        "$XSAPPNAME.SupervisorCalidad"
       ]
     },
     {

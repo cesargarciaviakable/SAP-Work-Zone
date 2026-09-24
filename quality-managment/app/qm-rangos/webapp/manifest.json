@@ -1,7 +1,7 @@
 {
   "_version": "1.89.0",
   "sap.app": {
-    "id": "lote.inspector.app.qmdashboard",
+    "id": "lote.inspector.app.qmrangos",
     "type": "application",
     "i18n": "i18n/i18n.properties",
     "applicationVersion": {
@@ -10,14 +10,9 @@
     "title": "{{appTitle}}",
     "description": "{{appDescription}}",
     "resources": "resources.json",
-    "sourceTemplate": {
-      "id": "@sap/generator-fiori:lrop",
-      "version": "1.32.0",
-      "toolsId": "56c22b7f-0832-4ba7-914c-9826f8627574"
-    },
     "dataSources": {
       "mainService": {
-        "uri": "/reports/",
+        "uri": "/config/",
         "type": "OData",
         "settings": {
           "annotations": [],
@@ -27,10 +22,10 @@
     },
     "crossNavigation": {
       "inbounds": {
-        "LoteReporte-display": {
-          "semanticObject": "LoteReporte",
-          "action": "display",
-          "title": "{{LoteReporte-display.flpTitle}}",
+        "QMRangos-manage": {
+          "semanticObject": "QMRangos",
+          "action": "manage",
+          "title": "{{QMRangos-manage.flpTitle}}",
           "signature": {
             "parameters": {},
             "additionalParameters": "allowed"
@@ -66,11 +61,7 @@
       "libs": {
         "sap.m": {},
         "sap.ui.core": {},
-        "sap.fe.templates": {},
-        "sap.viz": {},
-        "sap.suite.ui.microchart": {
-          "lazy": true
-        }
+        "sap.fe.templates": {}
       }
     },
     "contentDensities": {
@@ -81,7 +72,7 @@
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
-          "bundleName": "lote.inspector.app.qmdashboard.i18n.i18n"
+          "bundleName": "lote.inspector.app.qmrangos.i18n.i18n"
         }
       },
       "": {
@@ -106,54 +97,30 @@
       "routes": [
         {
           "pattern": ":?query:",
-          "name": "LotesConDecisionList",
-          "target": "LotesConDecisionList"
+          "name": "MaterialesList",
+          "target": "MaterialesList"
         },
         {
-          "pattern": "LotesConDecision({key}):?query:",
-          "name": "LotesConDecisionObjectPage",
-          "target": "LotesConDecisionObjectPage"
+          "pattern": "Materiales({key}):?query:",
+          "name": "MaterialesObjectPage",
+          "target": "MaterialesObjectPage"
         }
       ],
       "targets": {
-        "LotesConDecisionList": {
+        "MaterialesList": {
           "type": "Component",
-          "id": "LotesConDecisionList",
+          "id": "MaterialesList",
           "name": "sap.fe.templates.ListReport",
           "options": {
             "settings": {
-              "contextPath": "/LotesConDecision",
+              "contextPath": "/Materiales",
               "variantManagement": "Page",
               "navigation": {
-                "LotesConDecision": {
+                "Materiales": {
                   "detail": {
-                    "route": "LotesConDecisionObjectPage"
+                    "route": "MaterialesObjectPage"
                   }
                 }
-              },
-              "views": {
-                "paths": [
-                  {
-                    "key": "decisiones",
-                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Decisiones"
-                  },
-                  {
-                    "key": "status",
-                    "entitySet": "ResumenLotesPorStatus",
-                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Status"
-                  },
-                  {
-                    "key": "rendimiento",
-                    "entitySet": "RendimientoPorLinea",
-                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Rendimiento"
-                  },
-                  {
-                    "key": "fallas",
-                    "entitySet": "ParametrosFallidos",
-                    "annotationPath": "com.sap.vocabularies.UI.v1.SelectionPresentationVariant#Fallas"
-                  }
-                ],
-                "showCounts": false
               },
               "controlConfiguration": {
                 "@com.sap.vocabularies.UI.v1.LineItem": {
@@ -165,14 +132,24 @@
             }
           }
         },
-        "LotesConDecisionObjectPage": {
+        "MaterialesObjectPage": {
           "type": "Component",
-          "id": "LotesConDecisionObjectPage",
+          "id": "MaterialesObjectPage",
           "name": "sap.fe.templates.ObjectPage",
           "options": {
             "settings": {
               "editableHeaderContent": false,
-              "contextPath": "/LotesConDecision"
+              "contextPath": "/Materiales",
+              "controlConfiguration": {
+                "parametros/@com.sap.vocabularies.UI.v1.LineItem#Rangos": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable",
+                    "creationMode": {
+                      "name": "Inline"
+                    }
+                  }
+                }
+              }
             }
           }
         }

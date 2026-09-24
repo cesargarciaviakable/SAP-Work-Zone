@@ -9,15 +9,33 @@ module.exports = class InspectorService extends cds.ApplicationService {
             Lotes,
             Inspecciones,
             ResultadosInspeccion,
-            ParametrosMaterial
+            ParametrosMaterial,
+            Parametros
         } = this.entities
 
+        const TIPO_VISUAL = 'VISUAL'
 
-        // Returns true/false when the value can be checked against the
-        // material range, or undefined when there is nothing to compare
-        const calcularCumple = async (materialId, parametroId, valor) => {
 
-            if (!materialId || !parametroId || valor === null || valor === undefined) return
+        // Server-owned pass/fail for a resultado, aware of the parameter type:
+        //  - { tipoVisual: true }                     → VISUAL: cumpleVisual is user-owned,
+        //                                                 the server must never touch it
+        //  - { tipoVisual: false, cumple: true|false } → numeric: value inside/outside range
+        //  - { tipoVisual: false, cumple: null }       → numeric: no range or no value yet
+        //  - {} when there is no parametro to evaluate yet
+        const evaluarCumplimiento = async (materialId, parametroId, valorObtenido) => {
+
+            if (!parametroId) return {}
+
+            const parametro = await SELECT.one
+                .from(Parametros)
+                .columns('tipoParametro_code')
+                .where({ ID: parametroId })
+
+            if (parametro?.tipoParametro_code === TIPO_VISUAL) return { tipoVisual: true }
+
+            if (!materialId || valorObtenido === null || valorObtenido === undefined) {
+                return { tipoVisual: false, cumple: null }
+            }
 
             const rango = await SELECT.one
                 .from(ParametrosMaterial)
@@ -27,13 +45,50 @@ module.exports = class InspectorService extends cds.ApplicationService {
                     parametro_ID: parametroId
                 })
 
-            if (!rango) return
+            if (!rango) return { tipoVisual: false, cumple: null }
 
-            const v = Number(valor)
+            const v = Number(valorObtenido)
             const min = rango.valorMinimo ?? -Infinity
             const max = rango.valorMaximo ?? Infinity
 
-            return v >= Number(min) && v <= Number(max)
+            return { tipoVisual: false, cumple: v >= Number(min) && v <= Number(max) }
+        }
+
+
+        // Applies cumpleVisual + the UI field-control/criticality calculated
+        // columns onto a ResultadosInspeccion.drafts payload. These are
+        // literal columns on the drafts table — unlike the active entity,
+        // where they are recomputed on every read (see inspector-service.cds)
+        // — so they must be maintained by hand on every NEW/PATCH.
+        const aplicarControlesDraft = (data, { tipoVisual, cumple } = {}, cumpleVisualPrevio, parametroCambio = false) => {
+
+            if (tipoVisual === undefined) {
+                data.esVisual = false
+                data.controlValorObtenido = 3
+                data.controlCumpleVisual = 1
+                data.criticidad = 0
+                return
+            }
+
+            data.esVisual = tipoVisual
+            data.controlValorObtenido = tipoVisual ? 1 : 3
+            data.controlCumpleVisual = tipoVisual ? 3 : 1
+
+            if (!tipoVisual) {
+                // Numeric: the server always owns cumpleVisual, a stale/forged
+                // client value must never persist.
+                data.cumpleVisual = cumple ?? null
+            } else if (parametroCambio && !('cumpleVisual' in data)) {
+                // VISUAL, and this PATCH just switched the parametro away
+                // from a numeric one (R3-param-switch-stale-cumple): a
+                // leftover server-computed cumpleVisual must not survive
+                // the switch and be mistaken for a user choice. An
+                // explicit cumpleVisual sent in the same PATCH wins.
+                data.cumpleVisual = null
+            }
+
+            const cumpleFinal = 'cumpleVisual' in data ? data.cumpleVisual : cumpleVisualPrevio
+            data.criticidad = cumpleFinal === true ? 3 : cumpleFinal === false ? 1 : 0
         }
 
 
@@ -166,18 +221,20 @@ module.exports = class InspectorService extends cds.ApplicationService {
                 }
             }
 
-            // cumpleVisual se calcula comparando vs ParametrosMaterial
+            // cumpleVisual: VISUAL is user-owned and never touched here;
+            // numeric is always recomputed from ParametrosMaterial, so a
+            // stale or forged client value can never persist.
             for (const inspeccion of inspecciones) {
                 if ((inspeccion.status_code ?? 'ABIERTA') !== 'ABIERTA') continue
                 for (const resultado of inspeccion.resultados ?? []) {
 
-                    const cumple = await calcularCumple(
+                    const { tipoVisual, cumple } = await evaluarCumplimiento(
                         materialId,
                         resultado.parametro_ID,
                         resultado.valorObtenido
                     )
 
-                    if (cumple !== undefined) resultado.cumpleVisual = cumple
+                    if (tipoVisual === false) resultado.cumpleVisual = cumple ?? null
                 }
             }
 
@@ -190,6 +247,29 @@ module.exports = class InspectorService extends cds.ApplicationService {
 
             if (statusActual === 'PENDIENTE' && tieneAbierta) {
                 lote.status_code = 'EN_INSPECCION'
+            }
+        })
+
+
+        // Rejects deleting a lote that has a non-ABIERTA (already worked)
+        // inspección: the composition would otherwise cascade-delete it,
+        // bypassing the Inspecciones DELETE grant (only ABIERTA
+        // inspecciones may be deleted directly). R3-lote-delete-cascade.
+        this.before('DELETE', Lotes, async (req) => {
+
+            const loteId = req.params.at(-1)?.ID
+
+            const noAbiertas = await SELECT.one
+                .from(Inspecciones)
+                .columns('count(1) as total')
+                .where({ lote_ID: loteId })
+                .and('status_code !=', 'ABIERTA')
+
+            if (noAbiertas?.total > 0) {
+                return req.error(
+                    409,
+                    'No se puede eliminar un lote con inspecciones completadas'
+                )
             }
         })
 
@@ -268,9 +348,35 @@ module.exports = class InspectorService extends cds.ApplicationService {
             assertInspeccionAbierta(req, req.data.ID ?? req.params.at(-1)?.ID)
         )
 
-        this.before('NEW', ResultadosInspeccion.drafts, (req) =>
-            assertInspeccionAbierta(req, req.data.inspeccion_ID ?? req.params.at(-1)?.ID)
-        )
+        this.before('NEW', ResultadosInspeccion.drafts, async (req) => {
+
+            const inspeccionId = req.data.inspeccion_ID ?? req.params.at(-1)?.ID
+
+            const invalida = await assertInspeccionAbierta(req, inspeccionId)
+            if (invalida) return
+
+            const inspeccion = await SELECT.one
+                .from(Inspecciones.drafts)
+                .columns('lote_ID')
+                .where({
+                    ID: inspeccionId
+                })
+
+            const lote = inspeccion && await SELECT.one
+                .from(Lotes.drafts)
+                .columns('material_ID')
+                .where({
+                    ID: inspeccion.lote_ID
+                })
+
+            const resultado = await evaluarCumplimiento(
+                lote?.material_ID,
+                req.data.parametro_ID,
+                req.data.valorObtenido
+            )
+
+            aplicarControlesDraft(req.data, resultado)
+        })
 
         this.before(['PATCH', 'DELETE'], ResultadosInspeccion.drafts, async (req) => {
 
@@ -293,11 +399,12 @@ module.exports = class InspectorService extends cds.ApplicationService {
 
         this.before('PATCH', ResultadosInspeccion.drafts, async (req) => {
 
-            if (!('valorObtenido' in req.data) && !('parametro_ID' in req.data)) return
+            const camposRelevantes = ['valorObtenido', 'parametro_ID', 'cumpleVisual']
+            if (!camposRelevantes.some((campo) => campo in req.data)) return
 
             const draft = await SELECT.one
                 .from(ResultadosInspeccion.drafts)
-                .columns('parametro_ID', 'valorObtenido', 'inspeccion_ID')
+                .columns('parametro_ID', 'valorObtenido', 'cumpleVisual', 'inspeccion_ID')
                 .where({
                     ID: req.data.ID ?? req.params.at(-1)?.ID
                 })
@@ -318,13 +425,13 @@ module.exports = class InspectorService extends cds.ApplicationService {
                     ID: inspeccion.lote_ID
                 })
 
-            const cumple = await calcularCumple(
-                lote?.material_ID,
-                req.data.parametro_ID ?? draft.parametro_ID,
-                'valorObtenido' in req.data ? req.data.valorObtenido : draft.valorObtenido
-            )
+            const parametroId = req.data.parametro_ID ?? draft.parametro_ID
+            const valorObtenido = 'valorObtenido' in req.data ? req.data.valorObtenido : draft.valorObtenido
+            const parametroCambio = 'parametro_ID' in req.data && req.data.parametro_ID !== draft.parametro_ID
 
-            if (cumple !== undefined) req.data.cumpleVisual = cumple
+            const resultado = await evaluarCumplimiento(lote?.material_ID, parametroId, valorObtenido)
+
+            aplicarControlesDraft(req.data, resultado, draft.cumpleVisual, parametroCambio)
         })
 
 

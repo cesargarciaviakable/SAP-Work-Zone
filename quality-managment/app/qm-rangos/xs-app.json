@@ -3,8 +3,8 @@
   "authenticationMethod": "route",
   "routes": [
     {
-      "source": "^/supervisor/(.*)$",
-      "target": "/supervisor/$1",
+      "source": "^/config/(.*)$",
+      "target": "/config/$1",
       "destination": "quality-managment-srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": true

@@ -7,6 +7,14 @@ using InspectorService as service from '../../srv/inspector-service';
 
 annotate service.Lotes with @odata.draft.enabled;
 
+// Hide Edit/Delete on closed lotes instead of failing with 403
+annotate service.Lotes with @(
+  UI.UpdateHidden: edicionOculta,
+  UI.DeleteHidden: edicionOculta
+) {
+  edicionOculta @UI.Hidden;
+};
+
 
 // ═════════════════════════════════════════════════════════════
 // VALUE LISTS
@@ -426,6 +434,11 @@ annotate service.ResultadosInspeccion with {
   observacion
     @title: 'Observación'
     @UI.MultiLineText;
+
+  esVisual            @UI.Hidden;
+  criticidad          @UI.Hidden;
+  controlValorObtenido @UI.Hidden;
+  controlCumpleVisual  @UI.Hidden;
 };
 
 
@@ -453,7 +466,9 @@ annotate service.ResultadosInspeccion with @(
 
     {
       Value: cumpleVisual,
-      Label: 'Cumple'
+      Label: 'Cumple',
+      Criticality: criticidad,
+      CriticalityRepresentation: #WithIcon
     },
 
     {
@@ -491,7 +506,9 @@ annotate service.ResultadosInspeccion with @(
 
       {
         Value: cumpleVisual,
-        Label: 'Cumple'
+        Label: 'Cumple',
+        Criticality: criticidad,
+        CriticalityRepresentation: #WithIcon
       },
 
       {
@@ -528,11 +545,12 @@ annotate service.Inspecciones actions {
   );
 };
 
-// cumpleVisual is recalculated by the backend when these change
+// cumpleVisual, and the derived field-control/criticality columns, are
+// recalculated by the backend when any of these change
 annotate service.ResultadosInspeccion with @(
   Common.SideEffects #Cumple: {
-    SourceProperties: [ valorObtenido, parametro_ID ],
-    TargetProperties: [ 'cumpleVisual' ]
+    SourceProperties: [ valorObtenido, parametro_ID, cumpleVisual ],
+    TargetProperties: [ 'cumpleVisual', 'esVisual', 'controlValorObtenido', 'controlCumpleVisual', 'criticidad' ]
   }
 );
 
@@ -573,7 +591,10 @@ annotate service.ResultadosInspeccion with @(
   Capabilities.DeleteRestrictions: { Deletable: inspeccion.esEditable }
 ) {
   parametro     @Common.FieldControl: inspeccion.controlObligatorio;
-  valorObtenido @Common.FieldControl: inspeccion.controlCampo;
-  cumpleVisual  @Common.FieldControl: inspeccion.controlCampo;
+  // valorObtenido/cumpleVisual: locked while the inspección is not ABIERTA,
+  // and additionally: read-only valorObtenido for VISUAL params, read-only
+  // cumpleVisual (shown as a criticality icon instead) for numeric params
+  valorObtenido @Common.FieldControl: controlValorObtenido;
+  cumpleVisual  @Common.FieldControl: controlCumpleVisual;
   observacion   @Common.FieldControl: inspeccion.controlCampo;
 };

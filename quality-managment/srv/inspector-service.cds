@@ -32,11 +32,19 @@ service InspectorService {
     @restrict: [
         { grant: 'READ',   to: 'Inspector' },
         { grant: 'CREATE', to: 'Inspector' },
-        { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' }
+        { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' },
+        { grant: 'DELETE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' }
     ]
     entity Lotes as projection on db.Lotes {
         *,
-        inspecciones : redirected to Inspecciones
+        inspecciones : redirected to Inspecciones,
+
+        // Drives UI.UpdateHidden / UI.DeleteHidden: closed lotes cannot be
+        // edited or deleted (mirrors the UPDATE/DELETE grants above)
+        case
+            when status.code = 'PENDIENTE' or status.code = 'EN_INSPECCION' then false
+            else true
+        end as edicionOculta : Boolean
     };
 
     // Inspecciones
@@ -44,6 +52,7 @@ service InspectorService {
         { grant: 'READ',   to: 'Inspector' },
         { grant: 'CREATE', to: 'Inspector' },
         { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''ABIERTA''' },
+        { grant: 'DELETE', to: 'Inspector', where: 'status_code = ''ABIERTA''' },
         { grant: 'completarInspeccion', to: 'Inspector' }
     ]
     entity Inspecciones as projection on db.Inspecciones {
@@ -70,5 +79,34 @@ service InspectorService {
         { grant: 'UPDATE', to: 'Inspector' },
         { grant: 'DELETE', to: 'Inspector' }
     ]
-    entity ResultadosInspeccion as projection on db.ResultadosInspeccion;
+    entity ResultadosInspeccion as projection on db.ResultadosInspeccion {
+        *,
+        // true when the parametro is VISUAL (checkbox), false when numeric
+        // (server-computed pass/fail icon)
+        case when parametro.tipoParametro.code = 'VISUAL' then true else false end as esVisual : Boolean,
+
+        // UI criticality for cumpleVisual: 3 = positive (green), 1 = negative
+        // (red), 0 = neutral. Always derived from cumpleVisual, which for
+        // numeric parametros is exclusively server-owned.
+        case
+            when cumpleVisual = true  then 3
+            when cumpleVisual = false then 1
+            else 0
+        end as criticidad : Integer,
+
+        // Common.FieldControlType (1 = ReadOnly, 3 = Optional): locked while
+        // the inspección is not ABIERTA, and additionally read-only for
+        // valorObtenido on VISUAL params / for cumpleVisual on numeric params
+        case
+            when inspeccion.status.code != 'ABIERTA' then 1
+            when parametro.tipoParametro.code = 'VISUAL' then 1
+            else 3
+        end as controlValorObtenido : Integer,
+
+        case
+            when inspeccion.status.code != 'ABIERTA' then 1
+            when parametro.tipoParametro.code = 'VISUAL' then 3
+            else 1
+        end as controlCumpleVisual : Integer
+    };
 }

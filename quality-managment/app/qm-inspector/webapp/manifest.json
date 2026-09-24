@@ -39,6 +39,10 @@
       }
     }
   },
+  "sap.cloud": {
+    "public": true,
+    "service": "lote.inspector"
+  },
   "sap.ui": {
     "technology": "UI5",
     "icons": {
