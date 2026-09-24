@@ -37,7 +37,14 @@ service InspectorService {
     ]
     entity Lotes as projection on db.Lotes {
         *,
-        inspecciones : redirected to Inspecciones
+        inspecciones : redirected to Inspecciones,
+
+        // Drives UI.UpdateHidden / UI.DeleteHidden: closed lotes cannot be
+        // edited or deleted (mirrors the UPDATE/DELETE grants above)
+        case
+            when status.code = 'PENDIENTE' or status.code = 'EN_INSPECCION' then false
+            else true
+        end as edicionOculta : Boolean
     };
 
     // Inspecciones
