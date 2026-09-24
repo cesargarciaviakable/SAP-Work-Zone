@@ -220,6 +220,82 @@ describe('InspectorService - cumpleVisual server-owned evaluation', () => {
             expect(activo.cumpleVisual).to.equal(false) // 10 > 2.5
         })
 
+        it('resets cumpleVisual to null when a PATCH switches the parametro from numeric to VISUAL (R3-param-switch-stale-cumple)', async () => {
+            const { loteId, inspeccionId } = await crearLoteConInspeccionAbierta(MATERIAL_CON_RANGO)
+            const resultadoId = await crearResultadoDraft(inspeccionId, PARAM_NUMERICO, {
+                valorObtenido: 3.3 // within range -> server computes cumpleVisual = true
+            })
+
+            await PATCH(resultadoDraft(resultadoId), { parametro_ID: PARAM_VISUAL })
+
+            const { data: draft } = await GET(resultadoDraft(resultadoId))
+            expect(draft.esVisual).to.equal(true)
+            expect(draft.cumpleVisual).to.equal(null)
+            expect(draft.criticidad).to.equal(0)
+
+            await activarLote(loteId)
+
+            const { data: activo } = await GET(resultadoActivo(resultadoId))
+            expect(activo.cumpleVisual).to.equal(null)
+        })
+
+        it('keeps an explicit cumpleVisual sent in the same PATCH that switches the parametro to VISUAL', async () => {
+            const { loteId, inspeccionId } = await crearLoteConInspeccionAbierta(MATERIAL_CON_RANGO)
+            const resultadoId = await crearResultadoDraft(inspeccionId, PARAM_NUMERICO, {
+                valorObtenido: 3.3
+            })
+
+            await PATCH(resultadoDraft(resultadoId), { parametro_ID: PARAM_VISUAL, cumpleVisual: true })
+
+            const { data: draft } = await GET(resultadoDraft(resultadoId))
+            expect(draft.cumpleVisual).to.equal(true)
+
+            await activarLote(loteId)
+
+            const { data: activo } = await GET(resultadoActivo(resultadoId))
+            expect(activo.cumpleVisual).to.equal(true)
+        })
+
+        it('recomputes cumpleVisual from the range when a PATCH switches the parametro from VISUAL to numeric', async () => {
+            const { loteId, inspeccionId } = await crearLoteConInspeccionAbierta(MATERIAL_CON_RANGO)
+            const resultadoId = await crearResultadoDraft(inspeccionId, PARAM_VISUAL, {
+                cumpleVisual: true // client-chosen, must not survive the switch
+            })
+
+            await PATCH(resultadoDraft(resultadoId), {
+                parametro_ID: PARAM_NUMERICO,
+                valorObtenido: 5.0 // outside 3.200-3.400
+            })
+
+            const { data: draft } = await GET(resultadoDraft(resultadoId))
+            expect(draft.esVisual).to.equal(false)
+            expect(draft.cumpleVisual).to.equal(false)
+            expect(draft.criticidad).to.equal(1)
+
+            await activarLote(loteId)
+
+            const { data: activo } = await GET(resultadoActivo(resultadoId))
+            expect(activo.cumpleVisual).to.equal(false)
+        })
+
+        it('persists a cumpleVisual toggled via PATCH on a VISUAL result after activation (deferred coverage)', async () => {
+            const { loteId, inspeccionId } = await crearLoteConInspeccionAbierta(MATERIAL_CON_RANGO)
+            const resultadoId = await crearResultadoDraft(inspeccionId, PARAM_VISUAL, {
+                cumpleVisual: false
+            })
+
+            await PATCH(resultadoDraft(resultadoId), { cumpleVisual: true })
+
+            const { data: draft } = await GET(resultadoDraft(resultadoId))
+            expect(draft.cumpleVisual).to.equal(true)
+            expect(draft.criticidad).to.equal(3)
+
+            await activarLote(loteId)
+
+            const { data: activo } = await GET(resultadoActivo(resultadoId))
+            expect(activo.cumpleVisual).to.equal(true)
+        })
+
         it('leaves cumpleVisual neutral (null) when there is no value to compare', async () => {
             const { loteId, inspeccionId } = await crearLoteConInspeccionAbierta(MATERIAL_CON_RANGO)
             const resultadoId = await crearResultadoDraft(inspeccionId, PARAM_NUMERICO)
