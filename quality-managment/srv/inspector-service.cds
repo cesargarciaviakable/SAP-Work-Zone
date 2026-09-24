@@ -32,7 +32,8 @@ service InspectorService {
     @restrict: [
         { grant: 'READ',   to: 'Inspector' },
         { grant: 'CREATE', to: 'Inspector' },
-        { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' }
+        { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' },
+        { grant: 'DELETE', to: 'Inspector', where: 'status_code = ''PENDIENTE'' or status_code = ''EN_INSPECCION''' }
     ]
     entity Lotes as projection on db.Lotes {
         *,
@@ -44,6 +45,7 @@ service InspectorService {
         { grant: 'READ',   to: 'Inspector' },
         { grant: 'CREATE', to: 'Inspector' },
         { grant: 'UPDATE', to: 'Inspector', where: 'status_code = ''ABIERTA''' },
+        { grant: 'DELETE', to: 'Inspector', where: 'status_code = ''ABIERTA''' },
         { grant: 'completarInspeccion', to: 'Inspector' }
     ]
     entity Inspecciones as projection on db.Inspecciones {

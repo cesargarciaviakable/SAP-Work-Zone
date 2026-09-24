@@ -12,6 +12,7 @@
     "express": "^4"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
     "@cap-js/sqlite": "*",
     "@sap/cds-dk": "^10",
     "cds-plugin-ui5": "^0.17.0",
@@ -26,7 +27,8 @@
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
     "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
     "watch-qm-supervisor": "cds watch --open lote.inspector.app.qmsupervisor/index.html?sap-ui-xx-viewCache=false --livereload false",
-    "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false"
+    "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "test": "CDS_PLUGIN_UI5_ACTIVE=false node --test test/*.test.js"
   },
   "cds": {
     "requires": {
