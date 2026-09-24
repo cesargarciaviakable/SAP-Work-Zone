@@ -62,3 +62,19 @@ service ConfigService {
     @readonly
     entity TiposParametro as projection on db.TiposParametro;
 }
+
+// Materiales header fields are master data (out of scope here): only their
+// acceptance ranges (parametros composition) are maintained in this service.
+// `@readonly` on an element only produces a UI hint (Common.FieldControl
+// ReadOnly in the metadata) — it is NOT enforced by CAP for a raw PATCH
+// (validate_input only cleanses on CREATE/UPDATE/NEW, not on the draft-level
+// PATCH event) and is explicitly bypassed at draftActivate by CAP's
+// preserve_computed feature. The actual enforcement therefore lives in
+// srv/handlers/config-service.js (Materiales guards), this annotation only
+// drives the UI.
+annotate ConfigService.Materiales with {
+    codigo      @readonly;
+    descripcion @readonly;
+    unidad      @readonly;
+    activo      @readonly;
+};

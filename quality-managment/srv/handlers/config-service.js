@@ -11,6 +11,39 @@ module.exports = class ConfigService extends cds.ApplicationService {
 
         const tieneValor = (v) => v !== null && v !== undefined
 
+        // Materiales come from the master data: codigo, descripcion, unidad
+        // and activo are never editable through this service (only their
+        // ranges are, via the parametros composition). See the @readonly
+        // comment in srv/config-service.cds for why this is enforced here
+        // instead of relying on the annotation alone.
+        const CAMPOS_MAESTRO = ['codigo', 'descripcion', 'unidad', 'activo']
+        const ignorarCambiosDeMaestro = (data) => {
+            for (const campo of CAMPOS_MAESTRO) delete data[campo]
+        }
+
+        // ═════════════════════════════════════════════════════
+        // MATERIALES — solo mantenimiento de rangos (T10)
+        // Los materiales ya no se crean ni se eliminan desde esta
+        // app: vienen del maestro de materiales.
+        //
+        // Enforced via @Capabilities.InsertRestrictions.Insertable: false
+        // and @Capabilities.DeleteRestrictions.Deletable: false on
+        // ConfigService.Materiales (see app/qm-rangos/annotations.cds,
+        // which also carries UI.CreateHidden/DeleteHidden for the Fiori
+        // app). These are CAP's own generic checks — libx runtime rejects
+        // with 405 before any custom handler runs, both for a plain
+        // CREATE/DELETE and for a draft NEW (POST /config/Materiales) —
+        // so no extra `before` handler is needed here. Discarding an
+        // in-progress draft edit (DELETE with IsActiveEntity=false) stays
+        // allowed: CAP maps that to the separate 'CANCEL' event, which
+        // DeleteRestrictions does not cover.
+
+        // Live edit on the draft header: silently ignore any attempt to
+        // change master-data fields while the ranges are being edited.
+        this.before('PATCH', Materiales.drafts, (req) => {
+            ignorarCambiosDeMaestro(req.data)
+        })
+
         // ═════════════════════════════════════════════════════
         // MATERIALES — rangos de aceptación
         // Draft activation sends the whole document (material +
@@ -20,6 +53,10 @@ module.exports = class ConfigService extends cds.ApplicationService {
         // ═════════════════════════════════════════════════════
 
         this.before(['CREATE', 'UPDATE'], Materiales, async (req) => {
+
+            // Defense in depth: also strip master-data fields at activation
+            // time, regardless of what made it into the draft.
+            ignorarCambiosDeMaestro(req.data)
 
             const rangos = req.data.parametros ?? []
             if (rangos.length === 0) return
