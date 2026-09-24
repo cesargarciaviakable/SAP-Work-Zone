@@ -61,6 +61,12 @@ async function editarParametro(parametroId) {
     })
 }
 
+// Parses the sap-messages response header CAP sets for req.info/req.warn
+function mensajesDe(respuesta) {
+    const header = respuesta.headers['sap-messages']
+    return header ? JSON.parse(header) : []
+}
+
 // Asserts a 400 raised by the intended rule, not just any 400
 async function esperarRechazo(promesa, mensaje) {
     let respuesta
@@ -170,6 +176,96 @@ describe('ConfigService', () => {
             expect(data.esVisual).to.equal(true)
             expect(data.controlRango).to.equal(1)
         })
+
+        it('reads the navigated parametro after changing a range\'s parametro, without crashing on DraftAdministrativeData', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_VISUAL)
+
+            await PATCH(
+                `/config/Materiales(ID=${materialId},IsActiveEntity=false)/parametros(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_NUMERICO_A }
+            )
+
+            // Before the fix, the qm-rangos Object Page (LineItem #Rangos +
+            // Common.SideEffects #Parametro) made the Fiori elements client
+            // issue a nested-expand request shaped like this one — material
+            // draft -> ranges -> navigated parametro, itself expanded with
+            // DraftAdministrativeData because Parametros is draft-enabled —
+            // and it crashed with "no such column:
+            // ...DraftAdministrativeData_DraftUUID" (CAP's lean-draft SQL
+            // tried to read DraftAdministrativeData off the *active*
+            // Parametros table). Now that `parametro` is redirected to the
+            // non-draft ParametrosVH, DraftAdministrativeData is no longer a
+            // valid navigation on it at all — the client no longer asks for
+            // it — so this asserts the ordinary read succeeds with the new
+            // type instead.
+            const { data } = await GET(
+                `/config/Materiales(ID=${materialId},IsActiveEntity=false)` +
+                `?$expand=parametros($expand=parametro($select=tipoParametro_code))`
+            )
+
+            const rango = data.parametros.find((p) => p.ID === rangoId)
+            expect(rango.parametro.tipoParametro_code).to.equal('DIMENSIONAL')
+        })
+    })
+
+    describe('ParametrosMaterial — mensajes al cambiar el parámetro (draft)', () => {
+
+        it('clears valorMinimo/valorMaximo and informs when the parametro changes to VISUAL', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 1, valorMaximo: 5 })
+
+            const respuesta = await PATCH(
+                `/config/ParametrosMaterial(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_VISUAL }
+            )
+
+            expect(respuesta.data.valorMinimo).to.equal(null)
+            expect(respuesta.data.valorMaximo).to.equal(null)
+
+            const mensajes = mensajesDe(respuesta)
+            expect(mensajes.some((m) => m.message.includes('valores mínimo y máximo'))).to.equal(true)
+        })
+
+        it('warns when the parametro changes to a numeric type and neither bound is set', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_VISUAL)
+
+            const respuesta = await PATCH(
+                `/config/ParametrosMaterial(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_NUMERICO_A }
+            )
+
+            const mensajes = mensajesDe(respuesta)
+            expect(mensajes.some((m) => m.message.includes('al menos un valor mínimo o un valor máximo'))).to.equal(true)
+        })
+
+        it('does not warn when the parametro changes to a numeric type and a bound is already set in the same request', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_VISUAL)
+
+            const respuesta = await PATCH(
+                `/config/ParametrosMaterial(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_NUMERICO_A, valorMinimo: 1 }
+            )
+
+            const mensajes = mensajesDe(respuesta)
+            expect(mensajes.some((m) => m.message.includes('al menos un valor mínimo'))).to.equal(false)
+        })
+
+        it('warns early on a duplicate parametro within the same material draft', async () => {
+            const materialId = await crearMaterialDraft()
+            await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 1 })
+            const rangoId = await agregarRangoDraft(materialId, PARAM_NUMERICO_B, { valorMinimo: 1 })
+
+            const respuesta = await PATCH(
+                `/config/ParametrosMaterial(ID=${rangoId},IsActiveEntity=false)`,
+                { parametro_ID: PARAM_NUMERICO_A }
+            )
+
+            const mensajes = mensajesDe(respuesta)
+            expect(mensajes.some((m) => m.message.includes('no puede repetirse en el mismo material'))).to.equal(true)
+        })
     })
 
     describe('Parametros — catálogo', () => {
@@ -270,6 +366,39 @@ describe('ConfigService', () => {
             const { data } = await GET(`/config/Parametros(ID=${parametroId},IsActiveEntity=true)`)
             expect(data.descripcion).to.equal('Descripción visual editada')
         })
+
+        it('clears unidadMedida and informs when the tipoParametro switches to VISUAL', async () => {
+            const parametroId = await crearParametroDraft({ tipoParametro_code: 'DIMENSIONAL', unidadMedida: 'mm' })
+            await activarParametro(parametroId)
+            await editarParametro(parametroId)
+
+            const respuesta = await PATCH(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)`, {
+                tipoParametro_code: 'VISUAL'
+            })
+
+            expect(respuesta.data.unidadMedida).to.equal(null)
+
+            const mensajes = mensajesDe(respuesta)
+            expect(mensajes.some((m) => m.message.includes('unidad de medida'))).to.equal(true)
+
+            // Also enforced at activation, even if the client bypassed the
+            // live PATCH hint above.
+            await POST(
+                `/config/Parametros(ID=${parametroId},IsActiveEntity=false)/ConfigService.draftActivate`,
+                {}
+            )
+
+            const { data } = await GET(`/config/Parametros(ID=${parametroId},IsActiveEntity=true)`)
+            expect(data.unidadMedida).to.equal(null)
+        })
+
+        it('saves a newly created VISUAL parametro with unidadMedida as null', async () => {
+            const parametroId = await crearParametroDraft({ tipoParametro_code: 'VISUAL', unidadMedida: 'mm' })
+            await activarParametro(parametroId)
+
+            const { data } = await GET(`/config/Parametros(ID=${parametroId},IsActiveEntity=true)`)
+            expect(data.unidadMedida).to.equal(null)
+        })
     })
 
     describe('Access control', () => {
@@ -299,7 +428,7 @@ describe('ConfigService', () => {
             expect(data).to.include('<String>controlRango</String>')
 
             // value help for parametro on the range row
-            expect(data).to.include('Property="CollectionPath" String="Parametros"')
+            expect(data).to.include('Property="CollectionPath" String="ParametrosVH"')
         })
     })
 })

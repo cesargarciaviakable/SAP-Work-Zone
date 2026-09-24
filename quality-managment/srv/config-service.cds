@@ -22,6 +22,15 @@ service ConfigService {
 
     entity ParametrosMaterial as projection on db.ParametrosMaterial {
         *,
+        // Redirected to the non-draft ParametrosVH (see below): Parametros
+        // is itself draft-enabled, and navigating a draft child's
+        // association straight into another draft root breaks the FE's
+        // Common.SideEffects-triggered read of the navigated parametro —
+        // CAP's lean-draft SQL tries to read DraftAdministrativeData off
+        // the *active* Parametros table, which has no such column
+        // ("no such column: ...DraftAdministrativeData_DraftUUID").
+        parametro : redirected to ParametrosVH,
+
         // true when the linked parametro is VISUAL — drives the UI field
         // control below (visual params have no min/max, see
         // srv/handlers/config-service.js validations)
@@ -35,6 +44,19 @@ service ConfigService {
     // Catálogo de parámetros
     @odata.draft.enabled
     entity Parametros as projection on db.Parametros;
+
+    // Read-only, non-draft projection of Parametros: value-help collection
+    // and navigation/redirect target for ParametrosMaterial.parametro (see
+    // the comment above).
+    @readonly
+    entity ParametrosVH as projection on db.Parametros {
+        ID,
+        codigo,
+        descripcion,
+        tipoParametro,
+        unidadMedida,
+        activo
+    };
 
     // Value help
     @readonly

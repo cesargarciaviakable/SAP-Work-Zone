@@ -83,12 +83,89 @@ module.exports = class ConfigService extends cds.ApplicationService {
 
 
         // ═════════════════════════════════════════════════════
+        // RANGOS (draft) — feedback en vivo al cambiar el parámetro
+        // Non-blocking hints while the row is still being edited;
+        // the authoritative rejections stay in the Materiales
+        // handler above, run at activation.
+        // ═════════════════════════════════════════════════════
+
+        this.before('PATCH', ParametrosMaterial.drafts, async (req) => {
+
+            if (!('parametro_ID' in req.data)) return
+
+            const rowId = req.data.ID ?? req.params.at(-1)?.ID
+
+            const draft = await SELECT.one
+                .from(ParametrosMaterial.drafts)
+                .columns('material_ID', 'parametro_ID', 'valorMinimo', 'valorMaximo')
+                .where({ ID: rowId })
+
+            if (!draft) return
+
+            const nuevoParametroId = req.data.parametro_ID
+
+            if (nuevoParametroId && draft.material_ID) {
+
+                const duplicado = await SELECT.one
+                    .from(ParametrosMaterial.drafts)
+                    .columns('ID')
+                    .where({ material_ID: draft.material_ID, parametro_ID: nuevoParametroId })
+                    .and('ID !=', rowId)
+
+                if (duplicado) {
+                    req.warn({
+                        message: 'El parámetro no puede repetirse en el mismo material',
+                        target: 'parametro_ID'
+                    })
+                }
+            }
+
+            if (nuevoParametroId === draft.parametro_ID) return
+
+            const parametro = await SELECT.one
+                .from(Parametros)
+                .columns('tipoParametro_code')
+                .where({ ID: nuevoParametroId })
+
+            if (parametro?.tipoParametro_code === TIPO_VISUAL) {
+
+                req.data.valorMinimo = null
+                req.data.valorMaximo = null
+
+                req.info({
+                    message: 'Se eliminaron los valores mínimo y máximo porque el parámetro es visual',
+                    target: 'valorMinimo'
+                })
+
+                return
+            }
+
+            const tieneMinimo = tieneValor('valorMinimo' in req.data ? req.data.valorMinimo : draft.valorMinimo)
+            const tieneMaximo = tieneValor('valorMaximo' in req.data ? req.data.valorMaximo : draft.valorMaximo)
+
+            if (!tieneMinimo && !tieneMaximo) {
+                req.warn({
+                    message: 'Define al menos un valor mínimo o un valor máximo para este parámetro',
+                    target: 'valorMinimo'
+                })
+            }
+        })
+
+
+        // ═════════════════════════════════════════════════════
         // PARAMETROS — catálogo
         // ═════════════════════════════════════════════════════
 
         this.before(['CREATE', 'UPDATE'], Parametros, async (req) => {
 
             const id = req.data.ID ?? req.params.at(-1)?.ID
+
+            // A VISUAL parametro never has a unidad de medida: enforced here
+            // (activation resends the full row) and live on the draft PATCH
+            // below.
+            if (req.data.tipoParametro_code === TIPO_VISUAL) {
+                req.data.unidadMedida = null
+            }
 
             if (req.data.codigo) {
 
@@ -137,6 +214,32 @@ module.exports = class ConfigService extends cds.ApplicationService {
                     })
                 }
             }
+        })
+
+
+        // ═════════════════════════════════════════════════════
+        // PARAMETROS (draft) — feedback en vivo al cambiar el tipo
+        // ═════════════════════════════════════════════════════
+
+        this.before('PATCH', Parametros.drafts, async (req) => {
+
+            if (req.data.tipoParametro_code !== TIPO_VISUAL) return
+
+            const id = req.data.ID ?? req.params.at(-1)?.ID
+
+            const draft = await SELECT.one
+                .from(Parametros.drafts)
+                .columns('tipoParametro_code')
+                .where({ ID: id })
+
+            if (!draft || draft.tipoParametro_code === TIPO_VISUAL) return
+
+            req.data.unidadMedida = null
+
+            req.info({
+                message: 'Se eliminó la unidad de medida porque el parámetro es visual',
+                target: 'unidadMedida'
+            })
         })
 
         await super.init()
