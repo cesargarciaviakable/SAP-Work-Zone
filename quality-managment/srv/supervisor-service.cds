@@ -39,6 +39,14 @@ service SupervisorService {
         // Drives action availability: completed and not yet decided
         case when status.code = 'COMPLETADA' and decision.ID is null
              then true else false end as pendienteDecision : Boolean,
+        // UI criticality for the decision column: 3 = LIBERAR (green),
+        // 2 = LIBERAR_CON_DESVIACION (yellow), 1 = RECHAZAR (red), 0 = none
+        case decision.decision.code
+            when 'LIBERAR'                then 3
+            when 'LIBERAR_CON_DESVIACION' then 2
+            when 'RECHAZAR'               then 1
+            else 0
+        end as criticidadDecision : Integer,
         lote       : redirected to Lotes,
         resultados : redirected to ResultadosInspeccion,
         decision   : redirected to DecisionLote

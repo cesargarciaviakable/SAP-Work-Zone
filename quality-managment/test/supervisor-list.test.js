@@ -42,4 +42,28 @@ describe('Supervisor list report — decision column', () => {
 
         expect(nombres).to.include.members(['Liberar', 'Rechazar', 'Liberar con Desviación'])
     })
+
+    it('colors each decision: green release, yellow deviation, red reject, neutral pending', async () => {
+        const { data } = await GET(
+            '/supervisor/Inspecciones?$select=criticidadDecision&$expand=decision($select=decision_code)'
+        )
+        const porDecision = Object.fromEntries(
+            data.value.map((i) => [i.decision?.decision_code ?? 'SIN_DECISION', i.criticidadDecision])
+        )
+
+        expect(porDecision).to.deep.equal({
+            LIBERAR: 3,
+            LIBERAR_CON_DESVIACION: 2,
+            RECHAZAR: 1,
+            SIN_DECISION: 0
+        })
+    })
+
+    it('binds the decision column criticality to criticidadDecision', async () => {
+        const { data } = await GET('/supervisor/$metadata')
+        const lineItem = bloque(data, 'SupervisorService.Inspecciones')
+        const columna = lineItem.slice(lineItem.indexOf('Path="decision/decision_code"') - 400)
+
+        expect(columna).to.include('Criticality" Path="criticidadDecision"')
+    })
 })

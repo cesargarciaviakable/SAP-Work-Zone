@@ -54,6 +54,7 @@ annotate service.Inspecciones with @(
     {
       Value: decision.decision_code,
       Label: 'Decisión',
+      Criticality: criticidadDecision,
       // High importance keeps the column visible on narrow screens
       ![@UI.Importance]: #High
     }
@@ -359,4 +360,8 @@ annotate service.Lotes with {
   material        @Common.Text: material.descripcion @Common.TextArrangement: #TextOnly;
   lineaProduccion @Common.Text: lineaProduccion.descripcion @Common.TextArrangement: #TextOnly;
   turno           @Common.Text: turno.name @Common.TextArrangement: #TextOnly;
+};
+
+annotate service.Inspecciones with {
+  criticidadDecision @UI.Hidden;
 };
