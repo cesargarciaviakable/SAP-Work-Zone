@@ -106,31 +106,33 @@ module.exports = class ConfigService extends cds.ApplicationService {
                 }
             }
 
-            // Switching an existing parametro to VISUAL is rejected once it
-            // already has ParametrosMaterial rows: those rows either carry
-            // numeric ranges that would become invalid, or were already
-            // range-less because they belonged to a VISUAL parametro — either
-            // way the switch must not silently reinterpret prior data.
-            // Draft activation resends the full row, so only an actual type
-            // change counts: an already-VISUAL parametro stays editable.
-            if (req.event === 'UPDATE' && req.data.tipoParametro_code === TIPO_VISUAL) {
+            // Switching an in-use parametro between VISUAL and numeric is
+            // rejected in both directions: numeric ranges would become invalid
+            // on a VISUAL parametro, and range-less VISUAL rows would become
+            // invalid numeric ranges. Switching between numeric types is fine.
+            // Draft activation resends the full row, so only an actual change
+            // of category counts: unchanged parametros stay editable.
+            if (req.event === 'UPDATE' && 'tipoParametro_code' in req.data) {
 
                 const actual = await SELECT.one
                     .from(Parametros)
                     .columns('tipoParametro_code')
                     .where({ ID: id })
 
-                if (!actual || actual.tipoParametro_code === TIPO_VISUAL) return
+                const eraVisual = actual?.tipoParametro_code === TIPO_VISUAL
+                const seraVisual = req.data.tipoParametro_code === TIPO_VISUAL
 
-                const conRangos = await SELECT.one
+                if (!actual || eraVisual === seraVisual) return
+
+                const enUso = await SELECT.one
                     .from(ParametrosMaterial)
                     .columns('ID')
                     .where({ parametro_ID: id })
 
-                if (conRangos) {
+                if (enUso) {
                     return req.error({
                         code: 400,
-                        message: 'No se puede cambiar a tipo visual un parámetro que ya tiene rangos definidos en algún material',
+                        message: 'No se puede cambiar entre tipo visual y numérico un parámetro que ya está asignado a algún material',
                         target: 'tipoParametro_code'
                     })
                 }

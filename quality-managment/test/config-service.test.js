@@ -61,14 +61,18 @@ async function editarParametro(parametroId) {
     })
 }
 
-async function esperarRechazo(promesa) {
+// Asserts a 400 raised by the intended rule, not just any 400
+async function esperarRechazo(promesa, mensaje) {
+    let respuesta
     try {
         await promesa
-        expect.fail('expected the request to be rejected with 400')
     } catch (e) {
-        expect(e.response.status).to.equal(400)
-        return e.response.data
+        respuesta = e.response
     }
+    expect(respuesta, 'expected the request to be rejected with 400').to.exist
+    expect(respuesta.status).to.equal(400)
+    expect(respuesta.data.error.message).to.include(mensaje)
+    return respuesta.data
 }
 
 describe('ConfigService', () => {
@@ -102,21 +106,21 @@ describe('ConfigService', () => {
             const materialId = await crearMaterialDraft()
             await agregarRangoDraft(materialId, PARAM_NUMERICO_A)
 
-            await esperarRechazo(activarMaterial(materialId))
+            await esperarRechazo(activarMaterial(materialId), 'requiere al menos un valor mínimo o un valor máximo')
         })
 
         it('rejects valorMinimo greater than valorMaximo', async () => {
             const materialId = await crearMaterialDraft()
             await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 10, valorMaximo: 5 })
 
-            await esperarRechazo(activarMaterial(materialId))
+            await esperarRechazo(activarMaterial(materialId), 'no puede ser mayor que el valor máximo')
         })
 
         it('rejects valorMinimo or valorMaximo set on a VISUAL parametro', async () => {
             const materialId = await crearMaterialDraft()
             await agregarRangoDraft(materialId, PARAM_VISUAL, { valorMinimo: 1 })
 
-            await esperarRechazo(activarMaterial(materialId))
+            await esperarRechazo(activarMaterial(materialId), 'no puede tener valor mínimo ni máximo')
         })
 
         it('rejects a duplicate parametro within the same material', async () => {
@@ -124,7 +128,7 @@ describe('ConfigService', () => {
             await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 1, valorMaximo: 5 })
             await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 2, valorMaximo: 6 })
 
-            await esperarRechazo(activarMaterial(materialId))
+            await esperarRechazo(activarMaterial(materialId), 'no puede repetirse en el mismo material')
         })
     })
 
@@ -193,7 +197,7 @@ describe('ConfigService', () => {
             await activarParametro(primeroId)
 
             const segundoId = await crearParametroDraft({ codigo: codigoDuplicado })
-            await esperarRechazo(activarParametro(segundoId))
+            await esperarRechazo(activarParametro(segundoId), 'Ya existe un parámetro con el código')
         })
 
         it('rejects switching tipoParametro to VISUAL when the parametro already has ranges', async () => {
@@ -210,8 +214,43 @@ describe('ConfigService', () => {
             })
 
             await esperarRechazo(
-                POST(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)/ConfigService.draftActivate`, {})
+                POST(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)/ConfigService.draftActivate`, {}),
+                'No se puede cambiar entre tipo visual y numérico'
             )
+        })
+
+        it('rejects switching an in-use VISUAL parametro to a numeric type', async () => {
+            const parametroId = await crearParametroDraft({ tipoParametro_code: 'VISUAL', unidadMedida: null })
+            await activarParametro(parametroId)
+
+            const materialId = await crearMaterialDraft()
+            await agregarRangoDraft(materialId, parametroId)
+            await activarMaterial(materialId)
+
+            await editarParametro(parametroId)
+            await PATCH(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)`, {
+                tipoParametro_code: 'DIMENSIONAL'
+            })
+
+            await esperarRechazo(activarParametro(parametroId), 'No se puede cambiar entre tipo visual y numérico')
+        })
+
+        it('allows switching between numeric types while in use', async () => {
+            const parametroId = await crearParametroDraft({ tipoParametro_code: 'DIMENSIONAL' })
+            await activarParametro(parametroId)
+
+            const materialId = await crearMaterialDraft()
+            await agregarRangoDraft(materialId, parametroId, { valorMinimo: 1 })
+            await activarMaterial(materialId)
+
+            await editarParametro(parametroId)
+            await PATCH(`/config/Parametros(ID=${parametroId},IsActiveEntity=false)`, {
+                tipoParametro_code: 'ELECTRICO'
+            })
+            await activarParametro(parametroId)
+
+            const { data } = await GET(`/config/Parametros(ID=${parametroId},IsActiveEntity=true)`)
+            expect(data.tipoParametro_code).to.equal('ELECTRICO')
         })
 
         it('allows editing a VISUAL parametro that is already used by a material', async () => {
