@@ -30,7 +30,7 @@
     "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false",
     "watch-qm-rangos": "cds watch --open lote.inspector.app.qmrangos/index.html?sap-ui-xx-viewCache=false --livereload false",
     "watch-qm-parametros": "cds watch --open lote.inspector.app.qmparametros/index.html?sap-ui-xx-viewCache=false --livereload false",
-    "test": "CDS_PLUGIN_UI5_ACTIVE=false node --test test/*.test.js"
+    "test": "CDS_PLUGIN_UI5_ACTIVE=false CDS_REQUIRES_DB_CREDENTIALS_URL=:memory: node --test test/*.test.js"
   },
   "cds": {
     "requires": {
