@@ -19,7 +19,7 @@ modules:
     readiness-health-check-http-endpoint: /health
     readiness-health-check-type: http
   build-parameters:
-    builder: npm
+    builder: npm-ci
 - name: quality-managment-db-deployer
   type: hdb
   path: gen/db
@@ -27,27 +27,36 @@ modules:
   - name: quality-managment-db
   build-parameters:
     builder: npm
-- name: quality-managment-approuter
-  type: approuter.nodejs
-  path: app/router
+- name: quality-managment-destination-content
+  type: com.sap.application.content
   requires:
-  - name: srv-api
-    group: destinations
-    properties:
-      forwardAuthToken: true
-      name: srv-api
-      url: ~{srv-url}
-  - name: quality-managment-auth
-  - name: quality-managment-html5-repo-runtime
   - name: quality-managment-destination
-  provides:
-  - name: app-api
-    properties:
-      app-url: ${default-url}
+    parameters:
+      content-target: true
+  - name: quality-managment-html5-repo-host
+    parameters:
+      service-key:
+        name: quality-managment-html5-repo-host-key
+  - name: quality-managment-auth
+    parameters:
+      service-key:
+        name: quality-managment-auth-key
   parameters:
-    disk-quota: 256M
-    keep-existing-routes: true
-    memory: 256M
+    content:
+      instance:
+        destinations:
+        - Name: quality_managment_repo_host
+          ServiceInstanceName: quality-managment-html5-repo-host
+          ServiceKeyName: quality-managment-html5-repo-host-key
+          sap.cloud.service: lote.inspector
+        - Authentication: OAuth2UserTokenExchange
+          Name: quality_managment_uaa
+          ServiceInstanceName: quality-managment-auth
+          ServiceKeyName: quality-managment-auth-key
+          sap.cloud.service: lote.inspector
+        existing_destinations_policy: update
+  build-parameters:
+    no-source: true
 - name: quality-managment-app-content
   type: com.sap.application.content
   path: .
@@ -117,11 +126,12 @@ resources:
     path: ./xs-security.json
     service: xsuaa
     service-plan: application
+    service-name: quality-managment-auth
 - name: quality-managment-destination
   type: org.cloudfoundry.managed-service
   parameters:
     config:
-      HTML5Runtime_enabled: false
+      HTML5Runtime_enabled: true
       init_data:
         instance:
           destinations:
@@ -133,25 +143,22 @@ resources:
           - Authentication: NoAuthentication
             HTML5.DynamicDestination: true
             HTML5.ForwardAuthToken: true
-            Name: srv-api
+            Name: quality-managment-srv-api
             ProxyType: Internet
             Type: HTTP
             URL: ~{srv-api/srv-url}
           existing_destinations_policy: update
     service: destination
     service-plan: lite
+    service-name: quality-managment-destination
   requires:
   - name: srv-api
-- name: quality-managment-html5-repo-runtime
-  type: org.cloudfoundry.managed-service
-  parameters:
-    service: html5-apps-repo
-    service-plan: app-runtime
 - name: quality-managment-html5-repo-host
   type: org.cloudfoundry.managed-service
   parameters:
     service: html5-apps-repo
     service-plan: app-host
+    service-name: quality-managment-html5-repo-host
 parameters:
   deploy_mode: html5-repo
   enable-parallel-deployments: true
@@ -159,4 +166,5 @@ build-parameters:
   before-all:
   - builder: custom
     commands:
+    - npm ci
     - npx cds build --production

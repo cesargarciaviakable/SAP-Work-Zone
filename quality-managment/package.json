@@ -6,16 +6,18 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-    "@sap/cds": "^10",
     "@cap-js/hana": "*",
+    "@sap/cds": "^10",
+    "@sap/xssec": "^4.15.0",
     "express": "^4"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
     "@cap-js/sqlite": "*",
     "@sap/cds-dk": "^10",
     "cds-plugin-ui5": "^0.17.0",
-    "rimraf": "^5.0.5",
-    "mbt": "^1.2.49"
+    "mbt": "^1.2.49",
+    "rimraf": "^5.0.5"
   },
   "scripts": {
     "start": "cds-serve",
@@ -25,39 +27,48 @@
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
     "deploy": "cf deploy mta_archives/archive.mtar --retries 1",
     "watch-qm-supervisor": "cds watch --open lote.inspector.app.qmsupervisor/index.html?sap-ui-xx-viewCache=false --livereload false",
-    "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false"
+    "watch-qm-dashboard": "cds watch --open lote.inspector.app.qmdashboard/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "test": "CDS_PLUGIN_UI5_ACTIVE=false node --test test/*.test.js"
   },
   "cds": {
     "requires": {
       "db": {
         "kind": "sqlite",
+        "[hybrid]": {
+          "kind": "hana"
+        },
         "[production]": {
-          "kind": "hana-cloud"
+          "kind": "hana"
         }
       },
       "auth": {
-        "kind": "mocked",
-        "users": {
-          "alice": {
-            "password": "",
-            "roles": [
-              "Inspector",
-              "SupervisorCalidad",
-              "Administrador"
-            ]
-          },
-          "bob": {
-            "password": "",
-            "roles": [
-              "Inspector"
-            ]
-          },
-          "carol": {
-            "password": "",
-            "roles": [
-              "SupervisorCalidad"
-            ]
+        "[development]": {
+          "kind": "mocked",
+          "users": {
+            "alice": {
+              "password": "",
+              "roles": [
+                "Inspector",
+                "SupervisorCalidad",
+                "Administrador"
+              ]
+            },
+            "bob": {
+              "password": "",
+              "roles": [
+                "Inspector"
+              ]
+            },
+            "carol": {
+              "password": "",
+              "roles": [
+                "SupervisorCalidad"
+              ]
+            }
           }
+        },
+        "[production]": {
+          "kind": "xsuaa"
         }
       }
     }
