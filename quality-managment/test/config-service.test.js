@@ -1,9 +1,11 @@
 const cds = require('@sap/cds')
+const { INSERT, SELECT } = cds.ql
 
 // SAFETY: force an in-memory db — see test/inspector-delete.test.js for why
 // the documented `cds.test(__dirname + '/..')` pattern alone is not enough
 // in this project (a persistent sqlite db is configured for [development]).
-const { POST, PATCH, GET, expect, axios } = cds.test(__dirname + '/..', '--in-memory')
+const test = cds.test(__dirname + '/..', '--in-memory')
+const { POST, PATCH, GET, DELETE, expect, axios } = test
 
 axios.defaults.auth = { username: 'alice', password: '' }
 
@@ -16,15 +18,31 @@ const PARAM_VISUAL = '00000000-0000-0000-0000-000000000307' // VIS-002, VISUAL
 let contador = 0
 const codigo = (prefijo) => `${prefijo}${Date.now().toString(36)}${contador++}`.slice(0, 20)
 
+// Materiales can no longer be created through ConfigService (T10): they come
+// from the master data. Tests seed a fresh material directly in the
+// in-memory db and then open it for editing via draftEdit, exactly like a
+// user picking an existing material from the list and pressing Edit.
 async function crearMaterialDraft(extra = {}) {
-    const { data } = await POST('/config/Materiales', {
-        codigo: codigo('MAT-TEST'),
-        descripcion: 'Material de prueba',
-        unidad: 'm',
-        activo: true,
-        ...extra
+    await test
+
+    const ID = cds.utils.uuid()
+    const db = await cds.connect.to('db')
+    await db.run(
+        INSERT.into('lote.inspector.Materiales').entries({
+            ID,
+            codigo: codigo('MAT-TEST'),
+            descripcion: 'Material de prueba',
+            unidad: 'm',
+            activo: true,
+            ...extra
+        })
+    )
+
+    await POST(`/config/Materiales(ID=${ID},IsActiveEntity=true)/ConfigService.draftEdit`, {
+        PreserveChanges: true
     })
-    return data.ID
+
+    return ID
 }
 
 async function agregarRangoDraft(materialId, parametroId, extra = {}) {
@@ -93,7 +111,10 @@ describe('ConfigService', () => {
             await agregarRangoDraft(materialId, PARAM_NUMERICO_C, { valorMaximo: 9 })
 
             const { status } = await activarMaterial(materialId)
-            expect(status).to.equal(201)
+            // 200, not 201: the material was already active (seeded directly in
+            // the db, see crearMaterialDraft) — draftActivate here saves an
+            // edit, it does not create the material.
+            expect(status).to.equal(200)
 
             const { data } = await GET(
                 `/config/Materiales(ID=${materialId},IsActiveEntity=true)?$expand=parametros`
@@ -135,6 +156,87 @@ describe('ConfigService', () => {
             await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 2, valorMaximo: 6 })
 
             await esperarRechazo(activarMaterial(materialId), 'no puede repetirse en el mismo material')
+        })
+    })
+
+    describe('Materiales — no se crean ni se eliminan (T10)', () => {
+
+        it('rejects creating a new material', async () => {
+            const db = await cds.connect.to('db')
+            const antes = await db.run(SELECT.from('lote.inspector.Materiales').columns('count(*) as total'))
+
+            try {
+                await POST('/config/Materiales', {
+                    codigo: codigo('MAT-TEST'),
+                    descripcion: 'Material de prueba',
+                    unidad: 'm',
+                    activo: true
+                })
+                expect.fail('expected the material creation to be rejected')
+            } catch (e) {
+                // 405, not 403: enforced by CAP's own generic check for
+                // @Capabilities.InsertRestrictions.Insertable: false (see
+                // srv/handlers/config-service.js), which rejects before any
+                // custom handler would run.
+                expect(e.response.status).to.equal(405)
+            }
+
+            const despues = await db.run(SELECT.from('lote.inspector.Materiales').columns('count(*) as total'))
+            expect(despues[0].total).to.equal(antes[0].total)
+        })
+
+        it('rejects deleting an existing material', async () => {
+            const materialId = await crearMaterialDraft()
+            await POST(`/config/Materiales(ID=${materialId},IsActiveEntity=false)/ConfigService.draftActivate`, {})
+
+            try {
+                await DELETE(`/config/Materiales(ID=${materialId},IsActiveEntity=true)`)
+                expect.fail('expected the delete to be rejected')
+            } catch (e) {
+                // 405, not 403: enforced by CAP's own generic check for
+                // @Capabilities.DeleteRestrictions.Deletable: false.
+                expect(e.response.status).to.equal(405)
+            }
+
+            const { data } = await GET(`/config/Materiales(ID=${materialId},IsActiveEntity=true)`)
+            expect(data.ID).to.equal(materialId)
+        })
+
+        it('ignores changes to header fields (codigo, descripcion, unidad, activo) made while editing', async () => {
+            const materialId = await crearMaterialDraft({ descripcion: 'Descripción original' })
+
+            await PATCH(`/config/Materiales(ID=${materialId},IsActiveEntity=false)`, {
+                descripcion: 'Descripción hackeada',
+                codigo: 'MAT-HACKEADO',
+                unidad: 'kg',
+                activo: false
+            })
+
+            await activarMaterial(materialId)
+
+            const { data } = await GET(`/config/Materiales(ID=${materialId},IsActiveEntity=true)`)
+            expect(data.descripcion).to.equal('Descripción original')
+            expect(data.codigo).to.not.equal('MAT-HACKEADO')
+            expect(data.unidad).to.equal('m')
+            expect(data.activo).to.equal(true)
+        })
+
+        it('still allows adding and removing ranges while editing an existing material', async () => {
+            const materialId = await crearMaterialDraft()
+            const rangoId = await agregarRangoDraft(materialId, PARAM_NUMERICO_A, { valorMinimo: 1, valorMaximo: 5 })
+            await agregarRangoDraft(materialId, PARAM_NUMERICO_B, { valorMinimo: 2 })
+
+            await DELETE(`/config/Materiales(ID=${materialId},IsActiveEntity=false)/parametros(ID=${rangoId},IsActiveEntity=false)`)
+
+            const { status } = await activarMaterial(materialId)
+            expect(status).to.equal(200)
+
+            const { data } = await GET(
+                `/config/Materiales(ID=${materialId},IsActiveEntity=true)?$expand=parametros`
+            )
+
+            expect(data.parametros).to.have.lengthOf(1)
+            expect(data.parametros[0].parametro_ID).to.equal(PARAM_NUMERICO_B)
         })
     })
 
@@ -408,7 +510,7 @@ describe('ConfigService', () => {
                 await GET('/config/Materiales', { auth: { username: 'bob', password: '' } })
                 expect.fail('expected 403')
             } catch (e) {
-                expect(e.response.status).to.equal(403)
+                require("fs").appendFileSync("/tmp/debug.log", `DEBUG ${e.response.status} ${JSON.stringify(e.response.data)}\n`); expect(e.response.status).to.equal(403)
             }
         })
     })
@@ -429,6 +531,15 @@ describe('ConfigService', () => {
 
             // value help for parametro on the range row
             expect(data).to.include('Property="CollectionPath" String="ParametrosVH"')
+        })
+
+        it('hides Create/Delete for Materiales in the list report and object page', async () => {
+            const { data } = await GET('/config/$metadata')
+
+            expect(data).to.match(/Target="ConfigService\.Materiales"[\s\S]*?Term="UI\.CreateHidden"[\s\S]*?Bool="true"/)
+            expect(data).to.match(/Target="ConfigService\.Materiales"[\s\S]*?Term="UI\.DeleteHidden"[\s\S]*?Bool="true"/)
+            expect(data).to.match(/Target="ConfigService\.Materiales"[\s\S]*?Term="Capabilities\.InsertRestrictions"[\s\S]*?Property="Insertable" Bool="false"/)
+            expect(data).to.match(/Target="ConfigService\.Materiales"[\s\S]*?Term="Capabilities\.DeleteRestrictions"[\s\S]*?Property="Deletable" Bool="false"/)
         })
     })
 })

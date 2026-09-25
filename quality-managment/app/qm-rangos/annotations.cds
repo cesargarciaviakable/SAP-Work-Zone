@@ -5,6 +5,17 @@ using ConfigService as service from '../../srv/config-service';
 // MATERIALES — LIST REPORT
 // ═════════════════════════════════════════════════════════════
 
+// Materiales come from the master data: this app only maintains their
+// acceptance ranges. Create and Delete are hidden here (and rejected
+// server-side, see srv/config-service.cds / srv/handlers/config-service.js);
+// Edit stays available to maintain ranges.
+annotate service.Materiales with @(
+  UI.CreateHidden: true,
+  UI.DeleteHidden: true,
+  Capabilities.InsertRestrictions.Insertable: false,
+  Capabilities.DeleteRestrictions.Deletable: false
+);
+
 annotate service.Materiales with @(
   UI.SelectionFields: [
     codigo,
