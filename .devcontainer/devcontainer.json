@@ -1,0 +1,34 @@
+{
+  "name": "SAP CAP / Fiori - Node 24",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "remoteUser": "node",
+
+  "forwardPorts": [4004],
+  "portsAttributes": {
+    "4004": {
+      "label": "CAP server (cds watch)",
+      "onAutoForward": "openPreview"
+    }
+  },
+
+  "postCreateCommand": "for d in quality-managment room-booking task-list; do echo \"==> Installing $d\"; (cd $d && (npm ci --no-audit --no-fund || npm install --no-audit --no-fund)); done",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "SAPSE.sap-ux-fiori-tools-extension-pack",
+        "SAPSE.vscode-cds",
+        "dbaeumer.vscode-eslint",
+        "EditorConfig.EditorConfig",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "npm.packageManager": "npm",
+        "files.watcherExclude": {
+          "**/mta_archives/**": true,
+          "**/gen/**": true
+        }
+      }
+    }
+  }
+}
