@@ -1,0 +1,75 @@
+name: quality-managment CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'quality-managment/**'
+      - '.github/workflows/ci-cd.yml'
+  pull_request:
+    paths:
+      - 'quality-managment/**'
+      - '.github/workflows/ci-cd.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: quality-managment
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: quality-managment/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    # Never run two deployments against the same CF space at once
+    concurrency:
+      group: cf-deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: quality-managment/package-lock.json
+      - run: npm ci
+      - run: npm run build       # mbt build --mtar archive
+      - name: Install CF CLI (signed apt repository) + multiapps plugin
+        run: |
+          wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key \
+            | sudo gpg --dearmor -o /usr/share/keyrings/cli.cloudfoundry.org.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cli.cloudfoundry.org.gpg] https://packages.cloudfoundry.org/debian stable main" \
+            | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+          sudo apt-get update
+          sudo apt-get install -y cf8-cli
+          cf install-plugin multiapps -f
+      - name: Deploy
+        timeout-minutes: 20
+        env:
+          CF_API: ${{ secrets.CF_API }}
+          CF_USERNAME: ${{ secrets.CF_USERNAME }}
+          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+          CF_ORG: ${{ secrets.CF_ORG }}
+          CF_SPACE: ${{ secrets.CF_SPACE }}
+        run: |
+          cf api "$CF_API"
+          cf auth   # reads CF_USERNAME and CF_PASSWORD from the environment
+          cf target -o "$CF_ORG" -s "$CF_SPACE"
+          npm run deploy
